@@ -197,11 +197,25 @@ let viewMonth=thisMonth();
 const curMonth=()=>viewMonth;
 function shiftMonth(m,delta){let [y,mo]=m.split('-').map(Number);mo+=delta;if(mo<1){mo=12;y--;}if(mo>12){mo=1;y++;}return y+'-'+String(mo).padStart(2,'0');}
 function monthLabel(m){const [y,mo]=m.split('-').map(Number);return new Date(y,mo-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});}
+// Check if today (IST) is the last working day (Mon-Fri) of the current month.
+// On that day, the next month unlocks as a draft — you can start setting it up.
+function isLastWorkingDay(){
+  const n=istNow();
+  const last=new Date(n.y,n.m,0); // last day of current month (n.m is 1-indexed)
+  const dow=last.getDay();let d=last.getDate();
+  if(dow===0)d-=2;else if(dow===6)d-=1; // Sunday→Fri, Saturday→Fri
+  return n.d===d;
+}
 // A month is in the future (relative to real IST current month) if it sorts after it.
-function isFutureMonth(m){return m>thisMonth();}
+// Exception: on the last working day, the immediate next month is draftable.
+function isFutureMonth(m){
+  if(m<=thisMonth())return false;
+  if(m===shiftMonth(thisMonth(),1)&&isLastWorkingDay())return false;
+  return true;
+}
 function changeMonth(delta){
   const target=shiftMonth(viewMonth,delta);
-  if(isFutureMonth(target)){alert("You can't open a month before it actually starts (IST). Come back on the 1st.");return;}
+  if(isFutureMonth(target)){alert("That month hasn't started yet. Come back on the 1st (or the last working day for a draft).");return;}
   viewMonth=target;render();
 }
 function monthBar(){
@@ -213,10 +227,10 @@ function monthBar(){
   </div>`;
 }
 
-/* ---- Start next month: only allowed once that month has actually begun in IST. ---- */
+/* ---- Start next month: draft from last working day, or from the 1st. ---- */
 function startNewMonth(){
   const from=viewMonth, to=shiftMonth(viewMonth,1);
-  if(isFutureMonth(to)){alert(`${monthLabel(to)} hasn't started yet (IST). You can start it on the 1st of that month.`);return;}
+  if(isFutureMonth(to)){alert(`${monthLabel(to)} isn't available yet. It opens on the 1st (or the last working day for a draft).`);return;}
   const existingEx=DB.expenses.filter(e=>e.month===to);
   const existingBd=DB.budgets.filter(b=>b.month===to);
   let added=0;
@@ -240,45 +254,7 @@ const SUB_TAGCLASS={Investment:'t-invest',Insurance:'t-insure',Expense:'t-expens
 function seed(){
   return {
     savingsTypes:['FD','Arbitrage Fund','Liquid Fund','Mutual Fund','Recurring Deposit','Gold'],
-    people:[
-      {id:'p_vishal',name:'Vishal',avatar:'👨🏻',color:'#5b8cff', commonPct:70, personalPct:30},
-      {id:'p_shubhi',name:'Shubhi',avatar:'👩🏻',color:'#a78bfa', commonPct:50, personalPct:50},
-      {id:'p_mum',name:'Mum',avatar:'👵🏻',color:'#3ddc97', commonPct:0, personalPct:100},
-      {id:'p_mumsaket',name:'Mum (Saket)',avatar:'🧓🏻',color:'#fb923c', commonPct:0, personalPct:100}
-    ],
-    // Per-person monthly split. salary - sum(fixedItems) = remainder, split by commonPct/personalPct.
-    // Each fixedItem has a stable key so fixed expenses can link to it.
-    budgets:[
-      {id:uid(),person:'Vishal',month:thisMonth(),salary:240000,
-       fixedItems:[{k:uid(),n:'Stocks',a:35000,t:'Investment'},{k:uid(),n:'Mum',a:10000,t:'Expense'},{k:uid(),n:'ULIP',a:5000,t:'Investment'},{k:uid(),n:'Insurance',a:5200,t:'Insurance'}]},
-      {id:uid(),person:'Shubhi',month:thisMonth(),salary:150000,
-       fixedItems:[{k:uid(),n:'MF',a:30000,t:'Investment'},{k:uid(),n:'Insurance',a:6000,t:'Insurance'},{k:uid(),n:'Misc',a:4000,t:'Expense'}]}
-    ],
-    // kind:'fixed' = tickable planned expense (optional linkSub -> a budget fixedItem key)
-    // kind:'extra' = unplanned common transaction (no tick, always common, dips into common savings)
-    expenses:[
-      {id:uid(),kind:'fixed',name:'Rent',amount:35000,category:'Home',dueDay:1,paidBy:'Vishal',account:'Common',linkSub:null,month:thisMonth(),paid:false},
-      {id:uid(),kind:'fixed',name:'Electricity',amount:3000,category:'Utilities',dueDay:5,paidBy:'Vishal',account:'Common',linkSub:null,month:thisMonth(),paid:false},
-      {id:uid(),kind:'fixed',name:'Groceries',amount:12000,category:'Home',dueDay:3,paidBy:'Shubhi',account:'Common',linkSub:null,month:thisMonth(),paid:true},
-      {id:uid(),kind:'fixed',name:'Internet',amount:1200,category:'Utilities',dueDay:8,paidBy:'Vishal',account:'Common',linkSub:null,month:thisMonth(),paid:false},
-      {id:uid(),kind:'fixed',name:'Domestic help',amount:5000,category:'Home',dueDay:2,paidBy:'Shubhi',account:'Common',linkSub:null,month:thisMonth(),paid:false},
-      {id:uid(),kind:'extra',name:'Dining out',amount:2500,date:thisMonth()+'-06',account:'Common',month:thisMonth()},
-      {id:uid(),kind:'extra',name:'Cab to airport',amount:1400,date:thisMonth()+'-09',account:'Common',month:thisMonth()}
-    ],
-    // Savings/investments (renamed from FDs). type is customizable via savingsTypes.
-    savings:[
-      {id:uid(),owner:'Shubhi',type:'FD',bank:'Canara Bank',amount:200000,maturity:'',tenure:'-',source:'Bank',status:'Matured',phone:'7906150212',nominee:''},
-      {id:uid(),owner:'Shubhi',type:'FD',bank:'State Bank of India',amount:100000,maturity:'',tenure:'-',source:'Bank',status:'Running',phone:'7906150212',nominee:'Seema Verma'},
-      {id:uid(),owner:'Mum',type:'FD',bank:'Axis Bank',amount:100000,maturity:'2027-03-24',tenure:'1Y 3M',source:'Axis App',status:'Running',phone:'7906150212',nominee:'Vishal'},
-      {id:uid(),owner:'Mum',type:'FD',bank:'Axis Bank',amount:200000,maturity:'2027-03-24',tenure:'1Y 3M',source:'Axis App',status:'Running',phone:'',nominee:'Vishal'},
-      {id:uid(),owner:'Mum',type:'FD',bank:'Utkarsh SFB',amount:100000,maturity:'2028-03-28',tenure:'2Y',source:'Bank',status:'Running',phone:'',nominee:'Vishal'},
-      {id:uid(),owner:'Mum',type:'FD',bank:'Utkarsh SFB',amount:100000,maturity:'2028-03-28',tenure:'2Y',source:'Bank',status:'Running',phone:'',nominee:'Vishal'},
-      {id:uid(),owner:'Mum',type:'FD',bank:'Axis Bank',amount:200000,maturity:'2026-09-29',tenure:'1Y 6M',source:'Axis App',status:'Running',phone:'',nominee:'Vishal'},
-      {id:uid(),owner:'Vishal',type:'FD',bank:'Suryoday SFB',amount:100000,maturity:'2026-12-22',tenure:'1Y 6M',source:'Smallcase',status:'Running',phone:'8979967351',nominee:'Shubhi'},
-      {id:uid(),owner:'Vishal',type:'FD',bank:'Slice SFB',amount:100000,maturity:'2026-12-14',tenure:'1Y 6M',source:'Smallcase',status:'Running',phone:'8979967351',nominee:'Shubhi'},
-      {id:uid(),owner:'Vishal',type:'FD',bank:'Slice SFB',amount:100000,maturity:'2026-07-23',tenure:'1Y 1M',source:'Smallcase',status:'Running',phone:'8979967351',nominee:'Shubhi'},
-      {id:uid(),owner:'Mum (Saket)',type:'FD',bank:'Punjab National Bank',amount:470000,maturity:'2027-10-26',tenure:'1Y 2M',source:'Bank',status:'Running',phone:'8057456937',nominee:'Shubhi'}
-    ]
+    people:[], budgets:[], expenses:[], savings:[]
   };
 }
 
@@ -773,7 +749,7 @@ function delItem(coll,id){DB[coll]=DB[coll].filter(x=>x.id!==id);save();closeMod
 
 // --- Fixed / planned expense (tickable, linkable to a Split Expense subcategory) ---
 function openExpense(id){
-  const e=id?DB.expenses.find(x=>x.id===id):{name:'',amount:'',category:'Home',dueDay:1,paidBy:DB.people[0].name,account:'Common',linkSub:null};
+  const e=id?DB.expenses.find(x=>x.id===id):{name:'',amount:'',category:'Home',dueDay:1,paidBy:DB.people[0]?.name||'',account:'Common',linkSub:null};
   const acc=['Common','Personal'].map(a=>`<option ${e.account===a?'selected':''}>${a}</option>`).join('');
   const subs=expenseSubs();
   const linkOpts=`<option value="">— none —</option>`+subs.map(s=>`<option value="${s.k}" ${e.linkSub===s.k?'selected':''}>${esc(s.label)}</option>`).join('');
@@ -816,7 +792,7 @@ function saveExtra(id){
 // --- Budget / salary split (with dynamic subcategories) ---
 let editFixed=[]; // working copy of fixedItems while sheet is open
 function openBudget(id){
-  const b=id?DB.budgets.find(x=>x.id===id):{person:DB.people[0].name,salary:'',fixedItems:[]};
+  const b=id?DB.budgets.find(x=>x.id===id):{person:DB.people[0]?.name||'',salary:'',fixedItems:[]};
   editFixed=(b.fixedItems||[]).map(i=>({...i}));
   const p=DB.people.find(x=>x.name===b.person)||{commonPct:50,personalPct:50};
   openModal(`<h3>${id?'Edit':'Add'} salary split</h3>
@@ -866,7 +842,7 @@ function saveBudget(id){
 
 // --- Savings holding ---
 function openSaving(id){
-  const f=id?DB.savings.find(x=>x.id===id):{owner:DB.people[0].name,type:DB.savingsTypes[0],bank:'',amount:'',maturity:'',tenure:'',source:'Bank',status:'Running',phone:'',nominee:''};
+  const f=id?DB.savings.find(x=>x.id===id):{owner:DB.people[0]?.name||'',type:DB.savingsTypes[0],bank:'',amount:'',maturity:'',tenure:'',source:'Bank',status:'Running',phone:'',nominee:''};
   const types=DB.savingsTypes.map(t=>`<option ${t===f.type?'selected':''}>${esc(t)}</option>`).join('');
   openModal(`<h3>${id?'Edit':'Add'} savings</h3>
     <label>Type</label><select id="f_type">${types}</select>
