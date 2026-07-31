@@ -231,6 +231,16 @@ function monthBar(){
   </div>`;
 }
 
+/* ---- Reset month: blank or carry forward from previous. ---- */
+function resetMonth(){
+  const m=curMonth(),prev=shiftMonth(m,-1);
+  if(!confirm(`Reset ${monthLabel(m)}?\n\nAll budgets and expenses for this month will be removed.`))return;
+  const choice=confirm('Cancel = blank reset. OK = carry forward from previous month.');
+  DB.budgets=DB.budgets.filter(b=>b.month!==m);
+  DB.expenses=DB.expenses.filter(e=>e.month!==m);
+  if(choice)carryForward(prev,m);
+  save();render();
+}
 /* ---- Carry forward: copy budgets & expenses from one month to another. ---- */
 function carryForward(from,to){
   const existingEx=DB.expenses.filter(e=>e.month===to);
@@ -583,7 +593,8 @@ function viewExpenses(){
         <div class="muted xs">${esc(e.category)} · Due ${e.dueDay} · ${av(e.paidBy)} ${esc(e.paidBy)}${link?` · <span class="link">🔗 ${esc(link.it.n)}</span>`:''}</div></div>
         <span class="amt">${fmt(e.amount)}</span></div>`;});h+=`</div>`;}
     h+=`<button class="btn ghost" onclick="startNewMonth()">📅 Start ${monthLabel(shiftMonth(curMonth(),1))}</button>
-      <p class="muted xs" style="text-align:center;margin-top:8px">Copies bills &amp; split forward (unpaid), only after the month begins. Past months never change.</p>`;
+      <p class="muted xs" style="text-align:center;margin-top:8px">Copies bills &amp; split forward (unpaid), only after the month begins. Past months never change.</p>
+      <button class="btn ghost" style="margin-top:10px;border-color:var(--red);color:var(--red)" onclick="resetMonth()">↻ Reset this month</button>`;
   } else {
     const tot=extra.reduce((s,e)=>s+e.amount,0);
     h+=`<div class="card"><div class="row"><span class="b">Unplanned this month</span><span class="amt">${fmt(tot)}</span></div>
