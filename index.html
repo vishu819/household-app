@@ -216,6 +216,10 @@ function isFutureMonth(m){
 function changeMonth(delta){
   const target=shiftMonth(viewMonth,delta);
   if(isFutureMonth(target)){alert("That month hasn't started yet. Come back on the 1st (or the last working day for a draft).");return;}
+  // Auto-carry-forward when navigating to an empty draft month from a populated source
+  if(target>viewMonth&&!DB.budgets.some(b=>b.month===target)&&!DB.expenses.some(e=>e.month===target)){
+    carryForward(viewMonth,target);
+  }
   viewMonth=target;render();
 }
 function monthBar(){
@@ -227,23 +231,30 @@ function monthBar(){
   </div>`;
 }
 
+/* ---- Carry forward: copy budgets & expenses from one month to another. ---- */
+function carryForward(from,to){
+  const existingEx=DB.expenses.filter(e=>e.month===to);
+  const existingBd=DB.budgets.filter(b=>b.month===to);
+  let n=0;
+  DB.expenses.filter(e=>e.month===from).forEach(e=>{
+    if(existingEx.some(x=>x.name===e.name&&x.paidBy===e.paidBy))return;
+    DB.expenses.push({...e,id:uid(),month:to,paid:false,paidDate:null});n++;
+  });
+  DB.budgets.filter(b=>b.month===from).forEach(b=>{
+    if(existingBd.some(x=>x.person===b.person))return;
+    DB.budgets.push({...b,id:uid(),month:to,fixedItems:(b.fixedItems||[]).map(i=>({...i}))});n++;
+  });
+  if(n)save();
+}
 /* ---- Start next month: draft from last working day, or from the 1st. ---- */
 function startNewMonth(){
   const from=viewMonth, to=shiftMonth(viewMonth,1);
   if(isFutureMonth(to)){alert(`${monthLabel(to)} isn't available yet. It opens on the 1st (or the last working day for a draft).`);return;}
-  const existingEx=DB.expenses.filter(e=>e.month===to);
-  const existingBd=DB.budgets.filter(b=>b.month===to);
-  let added=0;
-  DB.expenses.filter(e=>e.month===from).forEach(e=>{
-    if(existingEx.some(x=>x.name===e.name&&x.paidBy===e.paidBy))return;
-    DB.expenses.push({...e,id:uid(),month:to,paid:false,paidDate:null});added++;
-  });
-  DB.budgets.filter(b=>b.month===from).forEach(b=>{
-    if(existingBd.some(x=>x.person===b.person))return;
-    DB.budgets.push({...b,id:uid(),month:to,fixedItems:(b.fixedItems||[]).map(i=>({...i}))});added++;
-  });
-  save();viewMonth=to;render();
-  alert(added?`Started ${monthLabel(to)} — copied ${added} item(s) forward. Expenses reset to unpaid; past months untouched.`
+  const before=DB.budgets.filter(b=>b.month===to).length+DB.expenses.filter(e=>e.month===to).length;
+  carryForward(from,to);
+  viewMonth=to;render();
+  const after=DB.budgets.filter(b=>b.month===to).length+DB.expenses.filter(e=>e.month===to).length;
+  alert(after>before?`Started ${monthLabel(to)} — copied ${after-before} item(s) forward.`
              :`${monthLabel(to)} already set up.`);
 }
 
