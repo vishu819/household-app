@@ -314,7 +314,7 @@ function avatarOf(name){const p=personBy(name);return p?(p.name||'?')[0].toUpper
 function av(name){const p=personBy(name);const c=p?p.color:'#888';const initial=p?(p.name||'?')[0].toUpperCase():'?';return `<span class="ava" style="border-color:${c};background:${c}22;color:${c};font-weight:800;font-size:12px">${initial}</span>`;}
 // Find a linked budget subcategory {person,item} by its key, in the current month.
 // Calculate RD current value: monthly deposit × months elapsed since start
-function rdCurrentValue(f){if(f.type!=='Recurring Deposit'||!f.rdMonthly||!f.rdStart)return null;const s=f.rdStart.split('-');if(s.length<3)return null;const start=new Date(+s[0],+s[1]-1,+s[2]);const now=new Date();const months=(now.getFullYear()-start.getFullYear())*12+(now.getMonth()-start.getMonth());return months>0?f.rdMonthly*months:0;}
+function rdCurrentValue(f){if(f.type!=='Recurring Deposit'||!f.rdMonthly||!f.rdStart)return null;const s=f.rdStart.split('-');if(s.length<3)return null;const start=new Date(+s[0],+s[1]-1,+s[2]);const now=new Date();const months=(now.getFullYear()-start.getFullYear())*12+(now.getMonth()-start.getMonth())+1;return months>0?f.rdMonthly*months:0;}
 function subByKey(k){for(const b of DB.budgets.filter(x=>x.month===curMonth())){const it=(b.fixedItems||[]).find(i=>i.k===k);if(it)return{b,it};}return null;}
 // All Expense-tagged fixed subcategories this month, for the link dropdown.
 function expenseSubs(){const out=[];DB.budgets.filter(b=>b.month===curMonth()).forEach(b=>(b.fixedItems||[]).forEach(i=>{if(i.t==='Expense')out.push({k:i.k,label:`${b.person}: ${i.n} (${fmt(i.a)})`});}));return out;}
