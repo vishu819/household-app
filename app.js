@@ -319,7 +319,7 @@ function subByKey(k){for(const b of DB.budgets.filter(x=>x.month===curMonth())){
 // All Expense-tagged fixed subcategories this month, for the link dropdown.
 function expenseSubs(){const out=[];DB.budgets.filter(b=>b.month===curMonth()).forEach(b=>(b.fixedItems||[]).forEach(i=>{if(i.t==='Expense')out.push({k:i.k,label:`${b.person}: ${i.n} (${fmt(i.a)})`});}));return out;}
 // Check if an expense is paid by someone outside the household (tracked, not counted in totals)
-function isExternalExpense(e){return e.kind==='fixed'&&!DB.people.some(p=>p.name===e.paidBy);}
+function isExternalExpense(e){return e.kind==='fixed'&&(e.account==='External'||!DB.people.some(p=>p.name===e.paidBy));}
 /* ============ actions & modals ============ */
 function togglePaid(id){
   const e=DB.expenses.find(x=>x.id===id);if(!e)return;
@@ -347,7 +347,7 @@ function delItem(coll,id){DB[coll]=DB[coll].filter(x=>x.id!==id);save();closeMod
 // --- Fixed / planned expense (tickable, linkable to a Split Expense subcategory) ---
 function openExpense(id){
   const e=id?DB.expenses.find(x=>x.id===id):{name:'',amount:'',category:'Home',dueDay:1,paidBy:DB.people[0]?.name||'',account:'Common',linkSub:null};
-  const acc=['Common','Personal'].map(a=>`<option ${e.account===a?'selected':''}>${a}</option>`).join('');
+  const acc=['Common','Personal','External'].map(a=>`<option ${e.account===a?'selected':''}>${a}</option>`).join('');
   const subs=expenseSubs();
   const linkOpts=`<option value="">— none —</option>`+subs.map(s=>`<option value="${s.k}" ${e.linkSub===s.k?'selected':''}>${esc(s.label)}</option>`).join('');
   openModal(`<h3>${id?'Edit':'Add'} planned expense</h3>
