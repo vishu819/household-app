@@ -220,15 +220,21 @@ function viewAnalytics(){
 }
 
 /* ---- Savings (renamed FDs), with customizable type ---- */
+let savingsFilter='';
+function setSavingsFilter(t){savingsFilter=t;render();}
 function viewSavings(){
-  const groups={};DB.savings.forEach(f=>{(groups[f.owner]=groups[f.owner]||[]).push(f);});
-  const rdAmt=f=>rdCurrentValue(f)??f.amount;const total=DB.savings.reduce((s,f)=>s+rdAmt(f),0);
-  let html=`<h1>Savings</h1><p class="sub">Total ${fmt(total)} · ${DB.savings.length} holdings</p>`;
+  const filtered=DB.savings.filter(f=>!savingsFilter||f.type===savingsFilter);
+  const groups={};filtered.forEach(f=>{(groups[f.owner]=groups[f.owner]||[]).push(f);});
+  const rdAmt=f=>rdCurrentValue(f)??f.amount;const total=filtered.reduce((s,f)=>s+rdAmt(f),0);
+  let html=`<h1>Savings</h1><p class="sub">Total ${fmt(total)} · ${filtered.length} holdings${savingsFilter?' ('+esc(savingsFilter)+')':''}</p>`;
   // by-type summary
   const byType={};DB.savings.forEach(f=>byType[f.type]=(byType[f.type]||0)+rdAmt(f));
   html+=`<div class="card"><div class="row" style="flex-wrap:wrap;gap:6px">`;
-  Object.keys(byType).forEach(t=>html+=`<span class="pill p-blue">${esc(t)} · ${fmt(byType[t])}</span>`);
-  html+=`</div><button class="btn ghost sm" style="margin-top:12px;width:100%" onclick="openTypes()">⚙︎ Manage types</button></div>`;
+  Object.keys(byType).forEach(t=>html+=`<span class="pill p-blue" style="cursor:pointer${savingsFilter===t?';outline:2px solid var(--accent)':''}" onclick="setSavingsFilter('${esc(t)}')">${esc(t)} · ${fmt(byType[t])}</span>`);
+  html+=`</div>`;
+	  html+=`<div class="seg" style="margin:8px 0"><button class="${!savingsFilter?'on':''}" onclick="setSavingsFilter('')">All</button>`;
+	  Object.keys(byType).forEach(t=>{html+=`<button class="${savingsFilter===t?'on':''}" onclick="setSavingsFilter('${esc(t)}')">${esc(t)}</button>`;});
+	  html+=`</div><button class="btn ghost sm" style="margin-top:12px;width:100%" onclick="openTypes()">⚙︎ Manage types</button></div>`
   Object.keys(groups).forEach(owner=>{const sum=groups[owner].reduce((s,f)=>s+rdAmt(f),0);
     html+=`<h2>${avatarOf(owner)} ${esc(owner)} · ${fmt(sum)}</h2>`;
     groups[owner].forEach(f=>{const d=daysTo(f.maturity);
