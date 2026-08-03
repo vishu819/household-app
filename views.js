@@ -1,5 +1,4 @@
 /* ============ views ============ */
-let homeExpOpen=true; // collapsible upcoming expenses on homepage
 function viewHome(){
   const ex=DB.expenses.filter(e=>e.month===curMonth()&&e.kind==='fixed'&&!isExternalExpense(e));
   const paid=ex.filter(e=>e.paid);
@@ -35,21 +34,7 @@ function viewHome(){
   else html+=`<p class="muted sm" style="margin:10px 0 0">All bills ticked 🎉</p>`;
   html+=`</div>`;
 
-  // Collapsible upcoming expenses (next 1-3 pending)
-  if(pending.length){
-    html+=`<div class="card" onclick="homeExpOpen=!homeExpOpen;render()" style="cursor:pointer">
-      <div class="row"><span class="b" style="color:var(--muted)">${homeExpOpen?'▾':'▸'} Upcoming bills</span><span class="muted sm">${pending.length} due · ${fmt(pending.slice(0,3).reduce((s,e)=>s+e.amount,0))}</span></div>`;
-    if(homeExpOpen){
-      html+=`<div style="margin-top:10px">`;
-      pending.slice(0,3).forEach(e=>{
-        html+=`<div class="exp"><button class="tick" onclick="event.stopPropagation();togglePaid('${e.id}')"></button>
-          <div style="flex:1"><div class="nm b">${esc(e.name)}</div><div class="muted xs">Due ${e.dueDay} · ${esc(e.paidBy)}</div></div>
-          <span class="amt">${fmt(e.amount)}</span></div>`;});
-      if(pending.length>3)html+=`<p class="muted xs" style="text-align:center;margin:8px 0 0">+ ${pending.length-3} more — see Expenses tab</p>`;
-      html+=`</div>`;
-    }
-    html+=`</div>`;
-  }
+
 
   html+=`<div class="row"><h2 style="margin-bottom:0">Savings &amp; investments</h2><span class="amt">${fmt(savTotal)}</span></div>`;
   if(maturing.length){maturing.sort((x,y)=>daysTo(x.maturity)-daysTo(y.maturity)).forEach(f=>{const d=daysTo(f.maturity);
