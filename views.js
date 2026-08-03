@@ -40,7 +40,7 @@ function viewHome(){
   if(maturing.length){maturing.sort((x,y)=>daysTo(x.maturity)-daysTo(y.maturity)).forEach(f=>{const d=daysTo(f.maturity);
     html+=`<div class="card"><div class="row"><div><div class="b">${esc(f.bank)}</div>
       <div class="muted xs">${esc(f.owner)} · ${esc(f.type)} · ${fmtDate(f.maturity)}</div></div>
-      <div style="text-align:right"><div class="amt">${fmt(f.amount)}</div><span class="pill ${d<=30?'p-red':'p-amber'}">in ${d}d</span></div></div></div>`;});}
+      <div style="text-align:right"><div class="amt">${fmt(typeof rdv==='number'?rdv:f.amount)}</div><span class="pill ${d<=30?'p-red':'p-amber'}">in ${d}d</span></div></div></div>`;});}
   else html+=`<div class="card"><p class="muted sm" style="margin:0">Nothing maturing in 90 days. Open the Savings tab for the full list.</p></div>`;
   return html;
 }
@@ -222,21 +222,21 @@ function viewAnalytics(){
 /* ---- Savings (renamed FDs), with customizable type ---- */
 function viewSavings(){
   const groups={};DB.savings.forEach(f=>{(groups[f.owner]=groups[f.owner]||[]).push(f);});
-  const total=DB.savings.reduce((s,f)=>s+f.amount,0);
+  const rdAmt=f=>rdCurrentValue(f)??f.amount;const total=DB.savings.reduce((s,f)=>s+rdAmt(f),0);
   let html=`<h1>Savings</h1><p class="sub">Total ${fmt(total)} · ${DB.savings.length} holdings</p>`;
   // by-type summary
-  const byType={};DB.savings.forEach(f=>byType[f.type]=(byType[f.type]||0)+f.amount);
+  const byType={};DB.savings.forEach(f=>byType[f.type]=(byType[f.type]||0)+rdAmt(f));
   html+=`<div class="card"><div class="row" style="flex-wrap:wrap;gap:6px">`;
   Object.keys(byType).forEach(t=>html+=`<span class="pill p-blue">${esc(t)} · ${fmt(byType[t])}</span>`);
   html+=`</div><button class="btn ghost sm" style="margin-top:12px;width:100%" onclick="openTypes()">⚙︎ Manage types</button></div>`;
-  Object.keys(groups).forEach(owner=>{const sum=groups[owner].reduce((s,f)=>s+f.amount,0);
+  Object.keys(groups).forEach(owner=>{const sum=groups[owner].reduce((s,f)=>s+rdAmt(f),0);
     html+=`<h2>${avatarOf(owner)} ${esc(owner)} · ${fmt(sum)}</h2>`;
     groups[owner].forEach(f=>{const d=daysTo(f.maturity);
       const st=f.status==='Matured'?'p-green':(d!==null&&d>=0&&d<=90?'p-amber':'p-blue');
-      const rdv=rdCurrentValue(f);
+      const rdv=rdAmt(f);
       html+=`<div class="card tap" onclick="openSaving('${f.id}')"><div class="row"><div><div class="b">${esc(f.bank)}</div>
-        <div class="muted xs">${esc(f.type)} · ${esc(f.source)}${f.tenure&&f.tenure!=='-'?' · '+esc(f.tenure):''}${f.nominee?' · Nominee '+esc(f.nominee):''}${rdv!==null?' · Curr ₹'+Math.round(rdv).toLocaleString('en-IN'):''}</div></div>
-        <div style="text-align:right"><div class="amt">${fmt(f.amount)}</div><span class="pill ${st}">${f.status==='Matured'?'Matured':(d!==null?fmtDate(f.maturity):'Running')}</span></div></div>
+        <div class="muted xs">${esc(f.type)} · ${esc(f.source)}${f.tenure&&f.tenure!=='-'?' · '+esc(f.tenure):''}${f.nominee?' · Nominee '+esc(f.nominee):''}</div></div>
+        <div style="text-align:right"><div class="amt">${fmt(typeof rdv==='number'?rdv:f.amount)}</div><span class="pill ${st}">${f.status==='Matured'?'Matured':(d!==null?fmtDate(f.maturity):'Running')}</span></div></div>
         ${f.phone?`<div class="xs" style="margin-top:6px"><a href="tel:${esc(f.phone)}">📞 ${esc(f.phone)}</a></div>`:''}</div>`;});});
   return html;
 }
