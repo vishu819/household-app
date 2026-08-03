@@ -310,7 +310,7 @@ function icon(name,color,sz){return `<svg viewBox="0 0 24 24" style="width:${sz|
 const TAGICON={Investment:'invest',Insurance:'insure',Expense:'expense',Savings:'save'};
 const TAGCOLOR={Investment:'var(--accent)',Insurance:'var(--amber)',Expense:'var(--red)',Savings:'var(--green)'};
 function personBy(name){return DB.people.find(p=>p.name===name);}
-function avatarOf(name){const p=personBy(name);return p?(p.name||'?')[0].toUpperCase()+(p.name||'?').slice(1).toLowerCase():'?';}
+function avatarOf(name){const p=personBy(name);return p?(p.name||'?')[0].toUpperCase():'?';}
 function av(name){const p=personBy(name);const c=p?p.color:'#888';const initial=p?(p.name||'?')[0].toUpperCase():'?';return `<span class="ava" style="border-color:${c};background:${c}22;color:${c};font-weight:800;font-size:12px">${initial}</span>`;}
 // Find a linked budget subcategory {person,item} by its key, in the current month.
 // Calculate RD current value: monthly deposit × months elapsed since start
