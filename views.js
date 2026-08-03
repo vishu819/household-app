@@ -125,7 +125,7 @@ function viewExpenses(){
     // Tracked section: external expenses
     if(tracked.length){
       html+=h('h2',{},'📋 Tracked (not paid by us)');
-      html+=h('div',{class:'card',style:'opacity:.8'},...tracked.map(e=>expenseRow(e,{showTick:false,showPaidBy:false,onClick:"openExpense('"+e.id+"')"})));
+      html+=h('div',{class:'card',style:'opacity:.8'},...tracked.map(e=>expenseRow(e,{showPaidBy:false,onClick:"openExpense('"+e.id+"')"})));
     }
     if(curMonth()>=thisMonth()){
       html+=h('button',{class:'btn ghost',onclick:'startNewMonth()'},'📅 Start '+monthLabel(shiftMonth(curMonth(),1)));
