@@ -580,10 +580,3 @@ function render(){
   eye.style.color=hideMoney?'var(--accent)':'var(--muted)';
   updateSyncBadge();window.scrollTo(0,0);
 }
-
-load();loadSync();render();
-if(sync.enabled){startPull();syncPull(true);}
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sync.enabled)syncPull(true);});
-window.addEventListener('focus',()=>{if(sync.enabled)syncPull(true);});
-if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
-

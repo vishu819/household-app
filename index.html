@@ -177,6 +177,12 @@
 
 <script src="app.js"></script>
 <script src="views.js"></script>
+<script>load();loadSync();render();
+if(sync.enabled){startPull();syncPull(true);}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sync.enabled)syncPull(true);});
+window.addEventListener('focus',()=>{if(sync.enabled)syncPull(true);});
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}</script>
+
 
 </body>
 </html>
