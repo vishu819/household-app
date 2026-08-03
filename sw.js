@@ -1,8 +1,10 @@
 // Service worker: cache the app shell so it works offline and feels native.
-const CACHE = 'household-v19';
+const CACHE = 'household-v20';
 const ASSETS = [
   './',
   './index.html',
+  './app.js',
+  './views.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
