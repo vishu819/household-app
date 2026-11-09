@@ -47,9 +47,9 @@ function changeMonth(delta){
 }
 function monthBar(){
   const nextIsFuture=isFutureMonth(shiftMonth(viewMonth,1));
-  return `<div class="row" style="margin:0 0 14px;background:var(--card2);border-radius:12px;padding:6px">
+  return `<div class="row monthbar">
     <button class="btn sm ghost" style="width:auto" onclick="changeMonth(-1)">‹</button>
-    <span class="b" style="font-size:15px">${monthLabel(viewMonth)}${viewMonth===thisMonth()?'':''}</span>
+    <span class="b month-label">${monthLabel(viewMonth)}${viewMonth===thisMonth()?'':''}</span>
     <button class="btn sm ghost" style="width:auto${nextIsFuture?';opacity:.35':''}" ${nextIsFuture?'disabled':''} onclick="changeMonth(1)">›</button>
   </div>`;
 }
@@ -282,7 +282,7 @@ function h(tag,attrs,...kids){const a=attrs?Object.entries(attrs).filter(([,v])=
 // Render an expense row (used in expenses, home, and grouped views)
 function expenseRow(e,opts={}){
   const link=e.linkSub?subByKey(e.linkSub):null;
-  const tick=opts.showTick!==false?h('button',{class:'tick '+(e.paid?'on':''),onclick:"togglePaid('"+e.id+"')"},e.paid?'✓':''):'';
+  const tick=opts.showTick!==false?h('button',{class:'tick '+(e.paid?'on':''),'aria-label':(e.paid?'Mark unpaid: ':'Mark paid: ')+e.name,'aria-pressed':String(!!e.paid),onclick:"togglePaid('"+e.id+"')"},e.paid?'✓':''):'';
   const name=h('div',{class:'nm b'},esc(e.name));
   const meta=[esc(e.category)];
   if(opts.showDueDay!==false)meta.push('Due '+e.dueDay);
@@ -294,6 +294,13 @@ function expenseRow(e,opts={}){
 }
 // Tiny inline line-icons (stroke inherits currentColor). Keeps the app dependency-free.
 const ICONS={
+  close:'<path d="m6 6 12 12M6 18 18 6"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  sync:'<path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-2l2 3M4 16l2 3a7 7 0 0 0 12-2"/>',
+  settings:'<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2" fill="var(--bg)"/><circle cx="16" cy="12" r="2" fill="var(--bg)"/><circle cx="10" cy="18" r="2" fill="var(--bg)"/>',
+  download:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/>',
+  upload:'<path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/>',
+  lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
   wallet:'<path d="M3 7h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/><circle cx="16" cy="13" r="1.3"/>',
   save:'<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>',
   invest:'<path d="M4 15l4.5-4.5 3.5 3L20 6"/><path d="M15 6h5v5"/>',
@@ -306,7 +313,7 @@ const ICONS={
   cal:'<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
   phone:'<path d="M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>'
 };
-function icon(name,color,sz){return `<svg viewBox="0 0 24 24" style="width:${sz||15}px;height:${sz||15}px;fill:none;stroke:${color||'currentColor'};stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;vertical-align:-2px">${ICONS[name]||''}</svg>`;}
+function icon(name,color,sz){return `<svg aria-hidden="true" viewBox="0 0 24 24" style="width:${sz||15}px;height:${sz||15}px;fill:none;stroke:${color||'currentColor'};stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;vertical-align:-2px">${ICONS[name]||''}</svg>`;}
 const TAGICON={Investment:'invest',Insurance:'insure',Expense:'expense',Savings:'save'};
 const TAGCOLOR={Investment:'var(--accent)',Insurance:'var(--amber)',Expense:'var(--red)',Savings:'var(--green)'};
 function personBy(name){return DB.people.find(p=>p.name===name);}
@@ -324,22 +331,33 @@ function isExternalExpense(e){return e.kind==='fixed'&&(e.account==='External'||
 function togglePaid(id){
   const e=DB.expenses.find(x=>x.id===id);if(!e)return;
   e.paid=!e.paid;e.paidDate=e.paid?nowISO():null;save();
-  // Targeted DOM update for the tapped row (avoids rebuilding the whole screen on every tick).
-  const btn=document.querySelector(`.tick[onclick*="${id}"]`);
-  const rowEl=btn&&btn.closest('.exp');
-  if(!rowEl){render();return;} // row not on screen (e.g. filter changed) -> safe fallback
-  btn.classList.toggle('on',e.paid);btn.textContent=e.paid?'✓':'';
-  rowEl.classList.toggle('paid',e.paid);
-  // refresh the "X of Y paid" summary + progress bar in place
-  const scope=DB.expenses.filter(x=>x.month===curMonth()&&x.kind==='fixed'&&!isExternalExpense(x));
-  const paid=scope.filter(x=>x.paid);
-  const tot=scope.reduce((s,x)=>s+x.amount,0), pd=paid.reduce((s,x)=>s+x.amount,0);
-  const bar=document.querySelector('.bar > i');if(bar)bar.style.width=(tot?Math.round(pd/tot*100):0)+'%';
-  const cnt=document.querySelector('[data-paidcount]');if(cnt)cnt.textContent=tab==='home'?`${paid.length} of ${scope.length} paid`:`${paid.length}/${scope.length} paid`;
-  const amt=document.querySelector('[data-paidamt]');if(amt)amt.textContent=`${fmt(pd)} / ${fmt(tot)}`;
+  const scrollY=window.scrollY;
+  render();
+  window.scrollTo(0,scrollY);
 }
-function openModal(html){document.getElementById('sheet').innerHTML=html;document.getElementById('modal').classList.add('show');}
-function closeModal(){document.getElementById('modal').classList.remove('show');}
+let modalTrigger=null;
+function openModal(html){
+  const modal=document.getElementById('modal'),sheet=document.getElementById('sheet');
+  modalTrigger=document.activeElement;
+  sheet.innerHTML=`<button class="modal-close" onclick="closeModal()" aria-label="Close dialog">${icon('close',null,20)}</button>`+html;
+  modal.classList.add('show');document.body.classList.add('modal-open');
+  sheet.scrollTop=0;
+  sheet.querySelector('h3')?.setAttribute('id','dialog-title');
+  sheet.querySelector('.modal-close').focus();
+}
+function closeModal(){
+  document.getElementById('modal').classList.remove('show');document.body.classList.remove('modal-open');
+  if(modalTrigger?.isConnected)modalTrigger.focus();
+}
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('modal').classList.contains('show'))return;
+  if(e.key==='Escape'){e.preventDefault();closeModal();return;}
+  if(e.key!=='Tab')return;
+  const items=[...document.getElementById('sheet').querySelectorAll('button,input,select,a[href],[tabindex="0"]')].filter(x=>!x.disabled&&x.getClientRects().length);
+  const first=items[0],last=items[items.length-1];
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}
+});
 function val(id){return document.getElementById(id).value;}
 function peopleOptions(sel){return DB.people.map(p=>`<option ${p.name===sel?'selected':''}>${esc(p.name)}</option>`).join('');}
 function delItem(coll,id){DB[coll]=DB[coll].filter(x=>x.id!==id);save();closeModal();render();}
@@ -571,12 +589,15 @@ function importData(){
 function render(){
   const v={home:viewHome,split:viewSplit,expenses:viewExpenses,analytics:viewAnalytics,savings:viewSavings,sync:viewSync}[tab];
   document.getElementById('app').innerHTML=v();
-  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
   document.getElementById('fab').style.display=(tab==='home'||tab==='sync'||tab==='analytics')?'none':'flex';
   const eye=document.getElementById('eye');
   eye.innerHTML=hideMoney
     ? '<svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 9 4.5 10 7-.4 1-1.3 2.4-2.6 3.6M6.6 6.6C4.6 7.9 3.4 9.7 3 11c1 2.5 5 7 9 7 1.4 0 2.7-.3 3.9-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'
     : '<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+  eye.setAttribute('aria-label',hideMoney?'Show amounts':'Hide amounts');
+  eye.setAttribute('aria-pressed',String(hideMoney));
+  document.getElementById('fab').setAttribute('aria-label',tab==='split'?'Add salary split':tab==='savings'?'Add savings':expTab==='extra'?'Add unplanned expense':'Add planned expense');
   eye.style.color=hideMoney?'var(--accent)':'var(--muted)';
   updateSyncBadge();window.scrollTo(0,0);
 }
