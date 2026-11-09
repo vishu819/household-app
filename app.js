@@ -108,6 +108,7 @@ function migrate(){
   if(!DB.savingsTypes)DB.savingsTypes=['FD','Arbitrage Fund','Liquid Fund','Mutual Fund','Recurring Deposit','Gold'];
   if(!DB.savings&&DB.fds){DB.savings=DB.fds.map(f=>({...f,type:f.type||'FD'}));delete DB.fds;}
   if(!DB.savings)DB.savings=[];
+  if(!Array.isArray(DB.vault))DB.vault=[];
   (DB.people||[]).forEach((p,i)=>{if(p.commonPct==null){p.commonPct=50;p.personalPct=50;}if(!p.id)p.id='p_'+uid();});
   // convert legacy budgets to salary model; ensure each fixedItem has a stable key
   (DB.budgets||[]).forEach(b=>{
@@ -202,6 +203,7 @@ function analyticsMonth(month){
 const SYNC_KEY='family-finance-sync';
 const SB_URL='https://eqhflowsnjzewfvlwkto.supabase.co';
 const SB_KEY='sb_publishable_FdhMtetQeLUGzbNlyw4qIw_lBMcFYbh';
+let verifiedVaultHousehold=null,vaultVerificationPending=false,vaultVerificationError='',vaultMembershipGeneration=0;
 let sync={enabled:false,id:null,pin:null,status:'off'};
 const SYNC_INTERVAL=12*60*60*1000;
 let pushTimer=null,pullTimer=null,pullInFlight=false,pushInFlight=false;
@@ -218,22 +220,24 @@ function syncConnection(){return sync.enabled&&sync.id?{id:sync.id,pin:sync.pin}
 function sameSyncConnection(connection){return !!connection&&sync.enabled&&sync.id===connection.id&&sync.pin===connection.pin;}
 function markSynced(pulled=false){if(!sync.enabled)return;sync.lastSyncedAt=nowISO();if(pulled)sync.lastPulledAt=sync.lastSyncedAt;persistSync();}
 async function createHousehold(pin){
+  const vaultAttempt=++vaultMembershipGeneration;verifiedVaultHousehold=null;destroyHouseholdVault();
   pin=(pin||'').trim();if(pin.length<4){alert('Choose a PIN of at least 4 digits.');return;}
   sync.status='pushing';renderIfSync();
-  try{const id=await rpc('household_create',{p_pin:pin,p_data:DB});if(!id||typeof id!=='string')throw 0;
-    sync={enabled:true,id:id,pin:pin,status:'idle'};markSynced(true);lastSerialized=JSON.stringify(DB);startPull();render();}
+  try{const id=await rpc('household_create',{p_pin:pin,p_data:DB});if(!id||typeof id!=='string')throw 0;if(vaultAttempt!==vaultMembershipGeneration)return;verifiedVaultHousehold=id;
+    verifiedVaultHousehold=id;sync={enabled:true,id:id,pin:pin,status:'idle'};markSynced(true);lastSerialized=JSON.stringify(DB);startPull();render();}
   catch(e){sync.status='error';renderIfSync();alert('Could not create household. Check connection and try again.');}
 }
 async function joinHousehold(id,pin){
+  const vaultAttempt=++vaultMembershipGeneration;verifiedVaultHousehold=null;destroyHouseholdVault();
   id=(id||'').trim();pin=(pin||'').trim();if(!id||!pin){alert('Enter both the household code and PIN.');return;}
   sync.status='pulling';renderIfSync();
   try{const rows=await rpc('household_get',{p_id:id,p_pin:pin});if(!rows||!rows.length)throw 0;
-    const remote=rows[0].data;if(!remote||typeof remote!=='object')throw 0;
+    if(vaultAttempt!==vaultMembershipGeneration)return;const remote=rows[0].data;if(!remote||typeof remote!=='object')throw 0;
     DB=remote;migrate();if(!DB.rev)DB.rev=rows[0].rev||1;localStorage.setItem(KEY,JSON.stringify(DB));
-    sync={enabled:true,id:id,pin:pin,status:'idle'};markSynced(true);lastSerialized=JSON.stringify(DB);startPull();render();}
+    verifiedVaultHousehold=id;sync={enabled:true,id:id,pin:pin,status:'idle'};markSynced(true);lastSerialized=JSON.stringify(DB);startPull();render();}
   catch(e){sync.status='error';renderIfSync();alert('Could not join. Double-check the household code and PIN.');}
 }
-function disableSync(){clearTimeout(pullTimer);clearTimeout(pushTimer);sync={enabled:false,id:null,pin:null,status:'off'};localStorage.removeItem(SYNC_KEY);render();}
+function disableSync(){vaultMembershipGeneration++;verifiedVaultHousehold=null;vaultVerificationPending=false;vaultVerificationError='';destroyHouseholdVault();clearTimeout(pullTimer);clearTimeout(pushTimer);sync={enabled:false,id:null,pin:null,status:'off'};localStorage.removeItem(SYNC_KEY);render();}
 function syncPush(){
   if(!sync.enabled||!sync.id)return;
   sync.pendingPush=true;persistSync();clearTimeout(pushTimer);
@@ -304,7 +308,7 @@ function lastSyncLabel(){
   const day=d.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
   return day===istToday()?'Last '+time:'Last '+d.toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short'})+' '+time;
 }
-function headerSync(){const busy=sync.status==='pushing'||sync.status==='pulling',label=lastSyncLabel();return `<button class="force-sync" onclick="syncNow()" aria-label="Force sync" title="Force sync" ${busy?'disabled':''}>${icon('sync','var(--accent)',16)}</button><span class="last-sync" aria-live="polite" title="${esc(label)}">${esc(label)}</span>`;}
+function headerSync(){const busy=sync.status==='pushing'||sync.status==='pulling',label=tab==='vault'?vaultSyncLabel:lastSyncLabel();return `<button class="force-sync" onclick="syncCurrentScreen()" aria-label="Force sync" title="Force sync" ${busy?'disabled':''}>${icon('sync','var(--accent)',16)}</button><span class="last-sync" aria-live="polite" title="${esc(label)}">${esc(tab==='vault'&&label.length>38?'Sync needs attention':label)}</span>`;}
 function renderIfSync(){const state=document.querySelector('[data-sync-state]');if(state){state.textContent=({idle:'Synced',pushing:'Saving…',pulling:'Refreshing…',error:'Sync needs attention'})[sync.status]||'';state.className='pill '+(sync.status==='error'?'p-red':'p-green');}const el=document.getElementById('headerSync');if(el)el.innerHTML=headerSync();const detail=document.querySelector('[data-sync-detail]');if(detail)detail.textContent='Last successful sync: '+(sync.lastSyncedAt?fmtDateTime(sync.lastSyncedAt):'Not yet')+' · auto-refresh every 12 hours';updateSyncBadge();}
 function updateSyncBadge(){
   const ic=document.getElementById('syncIc');if(!ic)return;
@@ -521,6 +525,7 @@ function onFab(){
   if(tab==='expenses'){expTab==='extra'?openExtra():openExpense();}
   else if(tab==='split')openBudget();
   else if(tab==='savings')openSaving();
+  else if(tab==='vault')openVaultEditor();
   else openExpense();
 }
 
@@ -587,26 +592,35 @@ function importData(){
 }
 
 function screenHeader(){
-  const specs={home:['This Month','Household overview'],split:['Monthly Split','Salary → fixed → common/personal savings'],expenses:['Expenses','Planned bills & unplanned spends'],analytics:['Analytics','Saving · investing · expenses'],savings:['Savings','Your household holdings'],sync:['Settings','Actors, sync & more']};
+  const specs={home:['This Month','Household overview'],split:['Monthly Split','Salary → fixed → common/personal savings'],expenses:['Expenses','Planned bills & unplanned spends'],analytics:['Analytics','Saving · investing · expenses'],savings:['Savings','Your household holdings'],vault:['Vault','Your household essentials'],more:['More','Tools & preferences'],sync:['Settings','Actors, sync & more']};
   const [title,subtitle]=specs[tab];
   const monthly=['home','split','expenses','analytics'].includes(tab);
   const headerHoldings=tab==='savings'?DB.savings.filter(f=>!savingsFilter||f.type===savingsFilter):[];
-  let context=monthly?monthBar():`<div class="header-context">${tab==='savings'?fmt(headerHoldings.reduce((s,f)=>s+(rdCurrentValue(f)??f.amount),0))+' · '+headerHoldings.length+' holdings':'Device & household'}</div>`;
+  let context=monthly?monthBar():`<div class="header-context">${tab==='savings'?fmt(headerHoldings.reduce((s,f)=>s+(rdCurrentValue(f)??f.amount),0))+' · '+headerHoldings.length+' holdings':tab==='vault'?'Credentials & documents':tab==='more'?'Tools & preferences':'Device & household'}</div>`;
   return `<header class="app-header"><div class="header-title"><h1>${tab==='home'&&curMonth()!==thisMonth()?'Overview':title}</h1></div><div class="header-period">${context}</div><div id="headerSync" class="header-sync">${headerSync()}</div><button class="eye" id="eye" onclick="toggleHide()" aria-label="Hide amounts"></button></header>`;
 }
 /* ============ render ============ */
 function render(){
-  const v={home:viewHome,split:viewSplit,expenses:viewExpenses,analytics:viewAnalytics,savings:viewSavings,sync:viewSync}[tab];
-  document.getElementById('app').innerHTML=screenHeader()+`<main class="screen-content">${v()}</main>`;
-  document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
-  document.getElementById('fab').style.display=(tab==='home'||tab==='sync'||tab==='analytics')?'none':'flex';
+  const v={home:viewHome,split:viewSplit,expenses:viewExpenses,analytics:viewAnalytics,savings:viewSavings,vault:viewVault,more:viewMore,sync:viewSync}[tab];
+  const app=document.getElementById('app');
+  if(!document.getElementById('shellHeader'))app.innerHTML='<div id="shellHeader"></div><main id="regularContent" class="screen-content"></main><main id="vaultContent" class="screen-content" hidden></main>';
+  document.getElementById('shellHeader').innerHTML=screenHeader();
+  const vaultContent=document.getElementById('vaultContent'),regularContent=document.getElementById('regularContent');
+  const inVault=tab==='vault';vaultContent.hidden=!inVault;regularContent.hidden=inVault;
+  if(inVault){if(!sync.enabled||verifiedVaultHousehold!==sync.id){destroyHouseholdVault();vaultContent.innerHTML=viewVaultGate();}else if(!document.getElementById('encryptedVaultFrame'))vaultContent.innerHTML=viewVault();}
+  else{regularContent.innerHTML=v();const frame=document.getElementById('encryptedVaultFrame');if(frame)frame.contentWindow.postMessage({type:'household-vault-lock'},location.origin);}
+  document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('active',(b.dataset.tab===tab||(b.dataset.tab==='more'&&['analytics','sync'].includes(tab))));if((b.dataset.tab===tab||(b.dataset.tab==='more'&&['analytics','sync'].includes(tab))))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+  document.getElementById('fab').style.display=(tab==='home'||tab==='sync'||tab==='analytics'||tab==='more'||(tab==='vault'&&vaultPanel==='encrypted'))?'none':'flex';
   const eye=document.getElementById('eye');
   eye.innerHTML=hideMoney
     ? '<svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 9 4.5 10 7-.4 1-1.3 2.4-2.6 3.6M6.6 6.6C4.6 7.9 3.4 9.7 3 11c1 2.5 5 7 9 7 1.4 0 2.7-.3 3.9-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'
     : '<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
   eye.setAttribute('aria-label',hideMoney?'Show amounts':'Hide amounts');
   eye.setAttribute('aria-pressed',String(hideMoney));
-  document.getElementById('fab').setAttribute('aria-label',tab==='split'?'Add salary split':tab==='savings'?'Add savings':expTab==='extra'?'Add unplanned expense':'Add planned expense');
+  document.getElementById('fab').setAttribute('aria-label',tab==='vault'?'Add vault entry':tab==='split'?'Add salary split':tab==='savings'?'Add savings':expTab==='extra'?'Add unplanned expense':'Add planned expense');
   eye.style.color=hideMoney?'var(--accent)':'var(--muted)';
+  const actorFrame=document.getElementById('encryptedVaultFrame');if(actorFrame&&sync.enabled&&verifiedVaultHousehold===sync.id)actorFrame.contentWindow.postMessage({type:'household-vault-actors',household:sync.id,actors:DB.people.map(p=>({id:p.id,name:p.name}))},location.origin);
   updateSyncBadge();window.scrollTo(0,0);
 }
+
+function syncCurrentScreen(){const frame=tab==='vault'?document.getElementById('encryptedVaultFrame'):null;if(frame)frame.contentWindow.postMessage({type:'household-vault-sync'},location.origin);else syncNow();}
