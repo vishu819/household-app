@@ -4,7 +4,7 @@ function viewHome(){
   const paid=ex.filter(e=>e.paid);
   const totalBills=ex.reduce((s,e)=>s+e.amount,0), paidAmt=paid.reduce((s,e)=>s+e.amount,0);
   const a=analyticsMonth(curMonth());
-  const savTotal=DB.savings.reduce((s,f)=>s+f.amount,0);
+  const savTotal=DB.savings.reduce((s,f)=>s+(rdCurrentValue(f)??f.amount),0);
   const maturing=DB.savings.filter(f=>{const d=daysTo(f.maturity);return d!==null&&d>=0&&d<=90;});
   const bpct=totalBills?Math.round(paidAmt/totalBills*100):0;
   const isNow=curMonth()===thisMonth();
@@ -40,7 +40,7 @@ function viewHome(){
   if(maturing.length){maturing.sort((x,y)=>daysTo(x.maturity)-daysTo(y.maturity)).forEach(f=>{const d=daysTo(f.maturity);
     html+=`<div class="card"><div class="row"><div><div class="b">${esc(f.bank)}</div>
       <div class="muted xs">${esc(f.owner)} · ${esc(f.type)} · ${fmtDate(f.maturity)}</div></div>
-      <div style="text-align:right"><div class="amt">${fmt(typeof rdv==='number'?rdv:f.amount)}</div><span class="pill ${d<=30?'p-red':'p-amber'}">in ${d}d</span></div></div></div>`;});}
+      <div style="text-align:right"><div class="amt">${fmt(rdCurrentValue(f)??f.amount)}</div><span class="pill ${d<=30?'p-red':'p-amber'}">in ${d}d</span></div></div></div>`;});}
   else html+=`<div class="card"><p class="muted sm" style="margin:0">Nothing maturing in 90 days. Open the Savings tab for the full list.</p></div>`;
   return html;
 }
@@ -284,7 +284,7 @@ function viewSync(){
       <button class="btn ghost" onclick="importData()">${icon('upload','var(--accent)',16)} &nbsp;Restore from backup</button></div>`;
   return html;
 }
-function copyCode(){navigator.clipboard?.writeText(sync.id).then(()=>alert('Household code copied.'),()=>{});}
+async function copyCode(){try{if(!navigator.clipboard)throw new Error('Clipboard unavailable');await navigator.clipboard.writeText(sync.id);alert('Household code copied.');}catch(e){alert('Could not copy the code. Select and copy the household code shown above.');}}
 function fmtDateTime(iso){try{return new Date(iso).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return '—';}}
 
 
