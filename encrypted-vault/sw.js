@@ -1,0 +1,5 @@
+const CACHE='household-integrated-vault-v31';
+const FILES=['./','index.html','style.css','prototype.js','actors.js','credential-form.js','reader.js','storage.js','membership.js','google-config.js','google-drive.js','drive-sync.js','workflow.js','recovery.js','documents.js','vendor/fflate-0.8.2.js','vendor/fflate-LICENSE','vendor/kdbxweb.min.js','vendor/argon2.umd.min.js','household-demo.kdbx'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)));self.skipWaiting();});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('household-integrated-vault-')&&k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==self.location.origin)return;if(e.request.mode==='navigate'){e.respondWith(fetch(e.request).then(response=>{if(response.ok){const copy=response.clone();e.waitUntil(caches.open(CACHE).then(c=>c.put(e.request,copy)));}return response;}).catch(()=>caches.match(e.request)));return;}e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request)));});

@@ -1,10 +1,34 @@
 // Service worker: cache the app shell so it works offline and feels native.
-const CACHE = 'household-v26';
+const CACHE = 'household-v36';
 const ASSETS = [
   './',
   './index.html',
   './app.js',
   './views.js',
+  './vault.js',
+  './encrypted-vault/google-drive.js',
+  './encrypted-vault/documents.js',
+  './encrypted-vault/actors.js',
+  './encrypted-vault/credential-form.js',
+  './encrypted-vault/vendor/fflate-0.8.2.js',
+  './encrypted-vault/vendor/fflate-LICENSE',
+  './encrypted-vault/membership.js',
+  './encrypted-vault/recovery.js',
+  './encrypted-vault/workflow.js',
+  './encrypted-vault/index.html',
+  './encrypted-vault/household-demo.kdbx',
+  './encrypted-vault/google-config.js',
+  './encrypted-vault/prototype.js',
+  './encrypted-vault/style.css',
+  './encrypted-vault/reader.js',
+  './encrypted-vault/drive-sync.js',
+  './encrypted-vault/sw.js',
+  './encrypted-vault/storage.js',
+  './encrypted-vault/vendor/LICENSE',
+  './encrypted-vault/vendor/hash-wasm-LICENSE',
+  './encrypted-vault/vendor/kdbxweb.min.js',
+  './encrypted-vault/vendor/argon2.umd.min.js',
+
   './savings.js',
   './institutions.js',
   './assets/institutions/au.png',
@@ -44,7 +68,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => /^household-v\d+$/.test(k) && k !== CACHE).map((k) => caches.delete(k)))
     )
   );
   self.clients.claim();
@@ -52,7 +76,8 @@ self.addEventListener('activate', (e) => {
 
 // Cache-first for app shell; network fallback otherwise.
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== self.location.origin) return;
+  if(new URL(e.request.url).pathname.includes('/encrypted-vault/')) return;
   // Never cache sync API traffic — it must always be live.
   if (e.request.url.includes('supabase.co')) return;
   e.respondWith(
