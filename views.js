@@ -10,10 +10,10 @@ function viewHome(){
   const isNow=curMonth()===thisMonth();
 
   let html=`<div>
-    <h1>${isNow?'This Month':'Overview'}</h1><p class="sub">${monthLabel(curMonth())} · IST</p></div>`;
-  if(sync.enabled){const t={idle:'Synced',pushing:'Saving…',pulling:'Syncing…',error:'Offline — retry'}[sync.status]||'Sync';
-    html+=`<button class="btn sm ghost" style="margin:0 0 12px" onclick="syncNow()">${icon('sync','var(--accent)',16)} ${t}</button>`;}
+    <p class="eyebrow">Household</p><h1>${isNow?'This Month':'Overview'}</h1><p class="sub">${monthLabel(curMonth())} · IST</p></div>`;
   html+=monthBar();
+  if(sync.enabled){const t={idle:'Synced',pushing:'Saving…',pulling:'Syncing…',error:'Offline — retry'}[sync.status]||'Sync';
+    html+=`<button class="sync-status" onclick="syncNow()">${icon('sync','var(--accent)',15)} ${t}</button>`;}
   if(!window.matchMedia('(display-mode: standalone)').matches)
     html+=`<div class="install-tip">${icon('download','var(--muted)',16)} <b>Install:</b> Safari Share button → <b>Add to Home Screen</b>. Full-screen &amp; offline.</div>`;
 
@@ -24,7 +24,7 @@ function viewHome(){
     <div class="stat"><div class="l" style="color:var(--red)">${icon('expense','var(--red)',14)} Expenses · ${pct(a.expRate)}</div><div class="n" style="color:var(--red)">${fmt(a.expense)}</div></div>
   </div>`;
 
-  html+=`<h2>Bills ticked</h2><div class="card"><div class="row"><span class="b" data-paidcount>${paid.length} of ${ex.length} paid</span>
+  html+=`<div class="card bills-card"><h2>Bills ticked</h2><div class="row"><span class="b" data-paidcount>${paid.length} of ${ex.length} paid</span>
       <span class="amt" data-paidamt>${fmt(paidAmt)} / ${fmt(totalBills)}</span></div><div class="bar"><i style="width:${bpct}%"></i></div>`;
   const pending=ex.filter(e=>!e.paid).sort((x,y)=>x.dueDay-y.dueDay);
   if(pending.length){html+=`<div style="margin-top:12px">`;pending.slice(0,4).forEach(e=>{

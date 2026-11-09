@@ -4,8 +4,8 @@
   "description": "Household — budgets, expenses, fixed deposits and SIPs, synced across your phones.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#192430",
+  "theme_color": "#192430",
   "orientation": "portrait",
   "icons": [
     {
