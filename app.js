@@ -69,7 +69,7 @@ function carryForward(from,to){
   const existingEx=DB.expenses.filter(e=>e.month===to);
   const existingBd=DB.budgets.filter(b=>b.month===to);
   let n=0;
-  DB.expenses.filter(e=>e.month===from).forEach(e=>{
+  DB.expenses.filter(e=>e.month===from&&e.kind==='fixed').forEach(e=>{
     if(existingEx.some(x=>x.name===e.name&&x.paidBy===e.paidBy))return;
     DB.expenses.push({...e,id:uid(),month:to,paid:false,paidDate:null});n++;
   });
