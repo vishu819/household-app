@@ -8,19 +8,12 @@
 <meta name="apple-mobile-web-app-title" content="Household" />
 <meta name="theme-color" content="#192430" />
 <link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/svg+xml" href="assets/household-logo-finance.svg" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="preload" href="inter.woff2" as="font" type="font/woff2" crossorigin />
 <title>Household</title>
+<link rel="stylesheet" href="theme.css">
 <style>
-  @font-face{font-family:Inter;src:url('inter.woff2') format('woff2');font-weight:100 900;font-display:swap;font-style:normal}
-  :root{
-    color-scheme:dark;
-    --bg:#192430;--bg2:#131c27;--ink:#f5f7fb;--muted:#c0c7d1;--line:rgba(223,232,244,.19);
-    --card:#303c48;--card2:rgba(228,237,251,.07);--accent:#78b5ff;--accent2:#78b5ff;--action:#075bff;
-    --green:#b0d3ff;--amber:#ffda88;--red:#ffadb6;--violet:#c1caff;--pink:#edbdd5;--orange:#ffd0a0;--grad:var(--action);
-    --glass:rgba(222,233,247,.11);--glass-border:rgba(228,236,248,.24);
-    --safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)
-  }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{margin:0;min-height:100%;background:var(--bg2);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-feature-settings:'cv11','ss01','tnum';letter-spacing:-.02em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overscroll-behavior:none}
   body{margin:0;padding-top:var(--safe-t)}
@@ -136,6 +129,11 @@
 .encrypted-vault-frame{display:block;border:0;width:100%;height:calc(100dvh - 235px);min-height:320px;background:#192430}.vault-search{display:block;margin-bottom:10px}.vault-owner{display:flex;align-items:center;gap:12px;margin-bottom:10px}.vault-owner label{margin:0}.vault-owner select{width:auto;flex:1;min-width:0}.vault-tabs{margin-bottom:12px}.vault-row{display:flex;width:100%;align-items:center;gap:12px;padding:16px 4px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);text-align:left;font:inherit;cursor:pointer}.vault-row-body{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}.vault-row-body strong{overflow-wrap:anywhere}.vault-provider{white-space:nowrap}.vault-symbol{display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--line);border-radius:10px;flex-shrink:0}.vault-disclosure{line-height:1.6;margin:20px 0}.vault-details{display:grid;grid-template-columns:100px minmax(0,1fr);gap:12px;margin:20px 0}.vault-details dt{color:var(--muted)}.vault-details dd{margin:0;overflow-wrap:anywhere}.vault-link{display:block;text-align:center;text-decoration:none}.vault-error{color:var(--red)}.vault-empty h2{margin-top:0}.vault-empty p{line-height:1.5}[hidden]{display:none!important}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 html,body{max-width:100%;overflow-x:clip;touch-action:manipulation}input,select,textarea{font-size:16px!important}button,a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}.household-picker-open{overflow:hidden!important}.household-picker{padding:0;width:calc(100vw - 20px);max-width:960px;height:calc(100dvh - 20px);max-height:calc(100dvh - 20px);min-width:0;border:1px solid #526174;border-radius:12px;box-sizing:border-box;background:#fff;color:#192430;overflow:hidden}.household-picker[open]{display:flex;flex-direction:column}.household-picker::backdrop{background:rgba(4,10,18,.72)}.household-picker-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;flex:0 0 auto;border-bottom:1px solid #d8dce3;font:16px system-ui}.household-picker-heading button{min-height:44px;padding:8px 14px;border:1px solid #bbc3cd;border-radius:8px;background:#f5f7fa;color:#192430;font:14px system-ui}.household-picker-frame{flex:1;min-height:0;min-width:0;width:100%;border:0;display:block}@media(max-width:600px){.household-picker{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border:0;border-radius:0;margin:0;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}}
+
+body.vault-screen-active{overflow:hidden}.vault-screen-active #vaultContent{display:flex;flex-direction:column;position:fixed;top:calc(88px + var(--safe-t));bottom:calc(62px + var(--safe-b));left:50%;transform:translateX(-50%);width:100%;max-width:560px;padding:16px 20px 0;box-sizing:border-box;overflow:hidden}.vault-screen-active .encrypted-vault-frame{flex:1 1 0;height:100%!important;min-height:0!important;width:100%;display:block;border:0}
+
+/* Header icons keep the original shared chrome and spacing. */
+.header-title h1{display:flex;align-items:center;gap:8px}.header-title-icon{display:inline-flex;color:var(--accent);flex:0 0 auto}.header-title-icon svg{width:19px;height:19px}
 </style>
 </head>
 <body>

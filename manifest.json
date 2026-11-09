@@ -1,7 +1,7 @@
 {
   "name": "Household",
   "short_name": "Household",
-  "description": "Household — budgets, expenses, fixed deposits and SIPs, synced across your phones.",
+  "description": "Household \u2014 budgets, expenses, fixed deposits and SIPs, synced across your phones.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#192430",
@@ -19,6 +19,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "assets/household-logo-finance.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

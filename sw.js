@@ -1,17 +1,17 @@
 // Service worker: cache the app shell so it works offline and feels native.
-const CACHE = 'household-v37';
+const CACHE = 'household-v56';
 const ASSETS = [
+  './assets/household-logo-finance.svg',
+  './theme.css',
   './',
   './index.html',
   './app.js',
   './views.js',
   './vault.js',
   './encrypted-vault/google-drive.js',
-  './encrypted-vault/documents.js',
+  './encrypted-vault/document-links.js',
   './encrypted-vault/actors.js',
   './encrypted-vault/credential-form.js',
-  './encrypted-vault/vendor/fflate-0.8.2.js',
-  './encrypted-vault/vendor/fflate-LICENSE',
   './encrypted-vault/membership.js',
   './encrypted-vault/recovery.js',
   './encrypted-vault/workflow.js',
@@ -80,7 +80,8 @@ self.addEventListener('fetch', (e) => {
   if(new URL(e.request.url).pathname.includes('/encrypted-vault/')) return;
   // Never cache sync API traffic — it must always be live.
   if (e.request.url.includes('supabase.co')) return;
-  e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request).catch(() => cached))
-  );
+  e.respondWith(caches.open(CACHE).then(async cache=>{
+    if(['localhost','127.0.0.1'].includes(self.location.hostname))return fetch(e.request).catch(()=>cache.match(e.request));
+    return (await cache.match(e.request))||fetch(e.request);
+  }));
 });

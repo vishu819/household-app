@@ -9,3 +9,5 @@ const VaultActors={
 };
 window.VaultActors=VaultActors;
 window.addEventListener('household-vault-actors-updated',()=>{for(const id of ['owner','documentOwner']){const select=document.getElementById(id);if(select)VaultActors.fill(select,select.value,true);}for(const id of ['editOwner','organizeOwner']){const select=document.getElementById(id);if(select)VaultActors.fill(select,select.value);}});
+
+function addSelect(form,label,id,options,selected=''){const wrapper=node('label',label),select=node('select');wrapper.htmlFor=id;select.id=id;for(const [v,name]of options)select.append(new Option(name,v));select.value=selected;wrapper.append(select);form.append(wrapper);return select;}

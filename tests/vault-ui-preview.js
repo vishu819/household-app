@@ -1,2 +1,4 @@
 'use strict';
 window.addEventListener('message',event=>{const frame=document.getElementById('fixture');if(event.origin!==location.origin||event.source!==frame.contentWindow)return;if(event.data?.type==='household-vault-context')frame.contentWindow.postMessage({type:'household-vault-context',household:'fictional-ui-preview',driveId:null,actors:[{id:'actor-vishal',name:'Vishal'},{id:'actor-shubhi',name:'Shubhi'}]},location.origin);});
+
+if(new URLSearchParams(location.search).has('locked'))document.getElementById('fixture').src+='&locked=1';

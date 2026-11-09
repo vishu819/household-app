@@ -1,8 +1,10 @@
 'use strict';
 // All credential and document metadata lives inside KDBX. Only encrypted bytes
 // and Drive synchronization identifiers are persisted outside that file.
-let driveBinding=null,syncRunning=false,driveReady=false;
-const syncMessage=s=>{$('syncStatus').textContent=s;parent.postMessage({type:'household-vault-status',text:s},location.origin);};
+let driveBinding=null,syncRunning=false,driveReady=false,syncRequested=false,syncSaveTimer=null;
+const SYNC_BATCH_MS=750;
+function scheduleVaultSync(){clearTimeout(syncSaveTimer);syncSaveTimer=setTimeout(()=>{syncSaveTimer=null;if(driveReady)forceVaultSync();},SYNC_BATCH_MS);}
+const syncMessage=s=>{$('syncStatus').textContent=s;parent.postMessage({type:'household-vault-status',text:s,connected:driveReady},location.origin);};
 async function persistBinding(){await VaultStorage.metaPut(driveBinding);}
 async function remoteMeta(id){return HouseholdDrive.request('/drive/v3/files/'+encodeURIComponent(id)+'?fields=id,name,version,md5Checksum,trashed,capabilities(canEdit),appProperties');}
 async function saveRemote(bytes,id){return HouseholdDrive.request('/upload/drive/v3/files/'+encodeURIComponent(id)+'?uploadType=media&fields=id,version,md5Checksum',{method:'PATCH',headers:{'Content-Type':'application/octet-stream'},body:bytes});}
@@ -29,7 +31,7 @@ async function adoptDriveVault(id){
 async function syncSavedVault(){
  if(!encrypted)return;
  driveBinding=driveBinding||{id:null};driveBinding.dirty=true;await persistBinding();
- if(driveReady)await forceVaultSync();else syncMessage('Saved on this device · waiting for Google connection');
+ if(driveReady){if(syncRunning)syncRequested=true;else scheduleVaultSync();}else syncMessage('Saved on this device · waiting for Google connection');
 }
 async function ensureDriveFolder(name,parentId=null){
  const q="trashed = false and mimeType = 'application/vnd.google-apps.folder' and name = '"+name+"'"+(parentId?" and '"+parentId+"' in parents":" and 'root' in parents");
@@ -51,7 +53,7 @@ async function backupVault(bytes,kind){
  return VaultDriveSync.upload(bytes,driveBinding.id,name,folder);
 }
 async function forceVaultSync(){
- if(syncRunning)return;if(busy||!$('editor').hidden){syncMessage('Finish editing before syncing.');return;}syncRunning=true;$('forceVaultSync').disabled=true;
+ if(syncRunning){syncRequested=true;return;}clearTimeout(syncSaveTimer);syncSaveTimer=null;if(busy||!$('editor').hidden){syncMessage('Finish editing before syncing.');return;}syncRunning=true;syncRequested=false;let succeeded=false;$('forceVaultSync').disabled=true;
  try{
   if(!driveReady)throw new Error('Connect Google Drive to sync.');
   if(!encrypted)throw new Error('Set up or choose a vault first.');
@@ -78,17 +80,20 @@ async function forceVaultSync(){
     driveBinding.checksum=saved.md5Checksum;driveBinding.version=saved.version;driveBinding.dirty=VaultStorage.revision!==localRevision;await persistBinding();
    }
   }
-  syncMessage(driveBinding.dirty?'New edits waiting to sync':'Synced just now');
- }catch(e){syncMessage(e.message);}finally{syncRunning=false;$('forceVaultSync').disabled=false;}
+  succeeded=true;syncMessage(driveBinding.dirty?'New edits waiting to sync':'Synced just now');
+ }catch(e){syncMessage(e.message);}finally{syncRunning=false;$('forceVaultSync').disabled=false;if(succeeded&&driveReady&&(syncRequested||driveBinding?.dirty))scheduleVaultSync();}
 }
 $('forceVaultSync').addEventListener('click',forceVaultSync);
 $('chooseExisting').addEventListener('click',async()=>{try{const id=await HouseholdDrive.pick();if(id)await adoptDriveVault(id);}catch(e){syncMessage(e.message);}});
 $('startNew').addEventListener('click',()=>{if(!encrypted)createVaultForm();else syncSavedVault();});
 window.addEventListener('household-drive-connected',discoverVault);
-window.addEventListener('household-drive-disconnected',()=>{driveReady=false;document.body.classList.remove('drive-ready');lock('Connect Google Drive again.');});
+window.addEventListener('household-drive-disconnected',()=>{driveReady=false;clearTimeout(syncSaveTimer);syncSaveTimer=null;syncRequested=false;document.body.classList.remove('drive-ready');lock('Connect Google Drive again.');});
 window.addEventListener('online',()=>{if(driveReady)forceVaultSync();});
 window.addEventListener('household-vault-saved',()=>{syncSavedVault().catch(e=>syncMessage(e.message));});
 // Keep a single page scroll rather than a nested scrolling panel.
-window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-sync')forceVaultSync();if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-background')concealVault();if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-resume')checkVaultIdle();if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-lock')lock('Vault locked. Your Google connection is still active.');});
+window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-sync'){if(driveReady)forceVaultSync();else $('connectGoogle').click();}if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-background')concealVault();if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-resume')checkVaultIdle();if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-lock')lock('Vault locked. Your Google connection is still active.');});
 setInterval(()=>{if(driveReady&&!document.hidden)forceVaultSync();},12*60*60*1000);
-new ResizeObserver(()=>{parent.postMessage({type:'household-vault-height',height:Math.ceil(document.body.getBoundingClientRect().height)},location.origin);}).observe(document.body);
+// Vault uses one viewport-sized scrolling document; no iframe auto-height loop.
+(async()=>{try{await HouseholdMembership.ready;const [stored,binding]=await Promise.all([VaultStorage.get(),VaultStorage.metaGet()]);if(stored&&binding?.id){driveBinding=binding;document.body.classList.add('vault-available');syncMessage('Saved on this device');$('connectGoogle').textContent='Connect Drive to sync';}}catch{}})();
+
+$('backToMainSettings').addEventListener('click',()=>parent.postMessage({type:'household-vault-main-settings'},location.origin));

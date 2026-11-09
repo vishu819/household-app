@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Household — finance icon</title>
+  <desc id="desc">A minimal ivory roof shelters a translucent financial dashboard with rising cobalt bars and a green growth indicator.</desc>
+  <defs>
+    <linearGradient id="panel" x1="140" y1="208" x2="366" y2="390" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5F7FB" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#F5F7FB" stop-opacity=".035"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="148" y1="211" x2="352" y2="389" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5F7FB" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#F5F7FB" stop-opacity=".1"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="#192430"/>
+  <path d="m128 214 113-87a25 25 0 0 1 30 0l113 87" stroke="#F5F7FB" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="138" y="220" width="236" height="172" rx="34" fill="url(#panel)" stroke="url(#edge)" stroke-width="2"/>
+  <path d="M166 256h44" stroke="#B9C8DD" stroke-opacity=".65" stroke-width="9" stroke-linecap="round"/>
+  <rect x="177" y="314" width="34" height="47" rx="10" fill="#3866FF"/>
+  <rect x="239" y="289" width="34" height="72" rx="10" fill="#5C83FF"/>
+  <rect x="301" y="263" width="34" height="98" rx="10" fill="#91AAFF"/>
+  <rect x="334" y="184" width="70" height="70" rx="23" fill="#253E39" stroke="#89CBB1" stroke-opacity=".4" stroke-width="2"/>
+  <path d="m354 231 29-29m-22 0h22v22" stroke="#A2E4C8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
