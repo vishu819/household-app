@@ -5,17 +5,13 @@ function viewHome(){
   const totalBills=ex.reduce((s,e)=>s+e.amount,0), paidAmt=paid.reduce((s,e)=>s+e.amount,0);
   const a=analyticsMonth(curMonth());
   const savTotal=DB.savings.reduce((s,f)=>s+(rdCurrentValue(f)??f.amount),0);
-  const maturing=DB.savings.filter(f=>{const d=daysTo(f.maturity);return d!==null&&d>=0&&d<=90;});
+  const maturing=DB.savings.filter(f=>{if(!hasSavingMaturity(f))return false;const d=daysTo(f.maturity);return d!==null&&d>=0&&d<=90;});
   const bpct=totalBills?Math.round(paidAmt/totalBills*100):0;
   const isNow=curMonth()===thisMonth();
 
-  let html=`<div>
-    <p class="eyebrow">Household</p><h1>${isNow?'This Month':'Overview'}</h1><p class="sub">${monthLabel(curMonth())} · IST</p></div>`;
-  html+=monthBar();
-  if(sync.enabled){const t={idle:'Synced',pushing:'Saving…',pulling:'Syncing…',error:'Offline — retry'}[sync.status]||'Sync';
-    html+=`<button class="sync-status" onclick="syncNow()">${icon('sync','var(--accent)',15)} ${t}</button>`;}
+  let html='';
   if(!window.matchMedia('(display-mode: standalone)').matches)
-    html+=`<div class="install-tip">${icon('download','var(--muted)',16)} <b>Install:</b> Safari Share button → <b>Add to Home Screen</b>. Full-screen &amp; offline.</div>`;
+    html+=`<details class="install-tip install-help"><summary>${icon('download','var(--muted)',13)} Install for offline access</summary><p>Safari Share button → <b>Add to Home Screen</b>. Full-screen &amp; offline.</p></details>`;
 
   html+=`<div class="grid2">
     <div class="stat"><div class="l">${icon('wallet','var(--muted)',14)} Income</div><div class="n">${fmt(a.salary)}</div></div>
@@ -38,8 +34,8 @@ function viewHome(){
 
   html+=`<div class="row"><h2 style="margin-bottom:0">Savings &amp; investments</h2><span class="amt">${fmt(savTotal)}</span></div>`;
   if(maturing.length){maturing.sort((x,y)=>daysTo(x.maturity)-daysTo(y.maturity)).forEach(f=>{const d=daysTo(f.maturity);
-    html+=`<div class="card"><div class="row"><div><div class="b">${esc(f.bank)}</div>
-      <div class="muted xs">${esc(f.owner)} · ${esc(f.type)} · ${fmtDate(f.maturity)}</div></div>
+    html+=`<div class="card"><div class="row"><div class="holding-identity">${institutionBadge(f)}<div><div class="b">${esc(holdingTitle(f))}</div>
+      <div class="muted xs">${esc(f.owner)} · ${esc(f.type)} · ${fmtDate(f.maturity)}</div></div></div>
       <div style="text-align:right"><div class="amt">${fmt(rdCurrentValue(f)??f.amount)}</div><span class="pill ${d<=30?'p-red':'p-amber'}">in ${d}d</span></div></div></div>`;});}
   else html+=`<div class="card"><p class="muted sm" style="margin:0">Nothing maturing in 90 days. Open the Savings tab for the full list.</p></div>`;
   return html;
@@ -49,7 +45,7 @@ let splitOpen={}; // budgetId -> expanded?
 function toggleSplit(id){splitOpen[id]=!splitOpen[id];render();}
 function viewSplit(){
   const bs=DB.budgets.filter(b=>b.month===curMonth());
-  let html=`<h1>Monthly Split</h1><p class="sub">Salary → fixed → common/personal savings</p>`+monthBar();
+  let html='';
   if(!bs.length)html+=`<div class="empty">No salary set for ${monthLabel(curMonth())}. Tap + to add.</div>`;
   bs.forEach(b=>{
     const s=splitFor(b);const p=DB.people.find(x=>x.name===b.person);const open=!!splitOpen[b.id];
@@ -94,7 +90,7 @@ function viewExpenses(){
   const all=DB.expenses.filter(e=>e.month===curMonth());
   const fixed=all.filter(e=>e.kind==='fixed').sort((a,b)=>a.paid-b.paid||(a.dueDay||0)-(b.dueDay||0));
   const extra=all.filter(e=>e.kind==='extra').sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  let html=h('h1',{},'Expenses')+h('p',{class:'sub'},'Planned bills & unplanned spends')+monthBar();
+  let html='';
   html+=h('div',{class:'seg'},
     h('button',{class:expTab==='fixed'?'on':'',onclick:"setExpTab('fixed')"},'Fixed / Planned'),
     h('button',{class:expTab==='extra'?'on':'',onclick:"setExpTab('extra')"},'Extra / Unplanned'));
@@ -154,7 +150,7 @@ function donut(items){
 }
 function viewAnalytics(){
   const people=DB.people.filter(p=>DB.budgets.some(b=>b.person===p.name));
-  let html=`<h1>Analytics</h1><p class="sub">Saving · investing · expenses</p>`+monthBar();
+  let html='';
   // mode selector
   html+=`<div class="seg"><button class="${anMode==='combined'?'on':''}" onclick="setAnMode('combined')">Combined</button>`;
   people.forEach(p=>html+=`<button class="${anMode===p.name?'on':''}" onclick="setAnMode('${esc(p.name)}')">${esc(p.name)}</button>`);
@@ -226,29 +222,24 @@ function viewSavings(){
   const filtered=DB.savings.filter(f=>!savingsFilter||f.type===savingsFilter);
   const groups={};filtered.forEach(f=>{(groups[f.owner]=groups[f.owner]||[]).push(f);});
   const rdAmt=f=>rdCurrentValue(f)??f.amount;const total=filtered.reduce((s,f)=>s+rdAmt(f),0);
-  let html=`<h1>Savings</h1><p class="sub">Total ${fmt(total)} · ${filtered.length} holdings${savingsFilter?' ('+esc(savingsFilter)+')':''}</p>`;
-  // by-type summary
   const byType={};DB.savings.forEach(f=>byType[f.type]=(byType[f.type]||0)+rdAmt(f));
-  html+=`<div class="card"><div class="row" style="flex-wrap:wrap;gap:6px">`;
-  Object.keys(byType).forEach(t=>html+=`<span class="pill p-blue" style="cursor:pointer${savingsFilter===t?';outline:2px solid var(--accent)':''}" onclick="setSavingsFilter('${esc(t)}')">${esc(t)} · ${fmt(byType[t])}</span>`);
-  html+=`</div>`;
-	  html+=`<div class="seg" style="margin:8px 0"><button class="${!savingsFilter?'on':''}" onclick="setSavingsFilter('')">All</button>`;
-	  Object.keys(byType).forEach(t=>{html+=`<button class="${savingsFilter===t?'on':''}" onclick="setSavingsFilter('${esc(t)}')">${esc(t)}</button>`;});
-	  html+=`</div><button class="btn ghost sm" style="margin-top:12px;width:100%" onclick="openTypes()">${icon('settings','var(--accent)',16)} Manage types</button></div>`
+  let html=`<div class="savings-tools"><div class="seg savings-filters"><button class="${!savingsFilter?'on':''}" onclick="setSavingsFilter('')">All</button>`;
+  Object.keys(byType).forEach(t=>{html+=`<button class="${savingsFilter===t?'on':''}" onclick="setSavingsFilter(${esc(JSON.stringify(t))})">${esc(t)} <span class="filter-amount">${fmt(byType[t])}</span></button>`;});
+  html+=`</div><button class="iconbtn" aria-label="Manage types" title="Manage types" onclick="openTypes()">${icon('settings','var(--accent)',18)}</button></div>`;
   Object.keys(groups).forEach(owner=>{const sum=groups[owner].reduce((s,f)=>s+rdAmt(f),0);
     html+=`<h2>${avatarOf(owner)} ${esc(owner)} · ${fmt(sum)}</h2>`;
-    groups[owner].forEach(f=>{const d=daysTo(f.maturity);
+    groups[owner].forEach(f=>{const d=hasSavingMaturity(f)?daysTo(f.maturity):null;
       const st=f.status==='Matured'?'p-green':(d!==null&&d>=0&&d<=90?'p-amber':'p-blue');
       const rdv=rdAmt(f);
-      html+=`<div class="card tap" onclick="openSaving('${f.id}')"><div class="row"><div><div class="b">${esc(f.bank)}</div>
-        <div class="muted xs">${esc(f.type)} · ${esc(f.source)}${f.tenure&&f.tenure!=='-'?' · '+esc(f.tenure):''}${f.nominee?' · Nominee '+esc(f.nominee):''}</div></div>
-        <div style="text-align:right"><div class="amt">${fmt(typeof rdv==='number'?rdv:f.amount)}</div><span class="pill ${st}">${f.status==='Matured'?'Matured':(d!==null?fmtDate(f.maturity):'Running')}</span></div></div>
+      html+=`<div class="card tap" onclick="openSaving('${f.id}')"><div class="row"><div class="holding-identity">${institutionBadge(f)}<div><div class="b">${esc(holdingTitle(f))}</div>
+        <div class="muted xs">${holdingSubtitle(f)}${f.nominee?' · Nominee '+esc(f.nominee):''}</div></div></div>
+        <div style="text-align:right"><div class="amt">${fmt(typeof rdv==='number'?rdv:f.amount)}</div><span class="pill ${st}">${f.status==='Matured'?'Matured':(d!==null?fmtDate(f.maturity):(f.status||'Running'))}</span></div></div>
         ${f.phone?`<div class="xs" style="margin-top:6px"><a href="tel:${esc(f.phone)}">${icon('phone','var(--accent)',14)} ${esc(f.phone)}</a></div>`:''}</div>`;});});
   return html;
 }
 
 function viewSync(){
-  let html=`<h1>Settings</h1><p class="sub">Actors, sync &amp; more</p>`;
+  let html='';
   // --- Profiles / actors ---
   html+=`<h2>Actors</h2>`;
   DB.people.forEach(p=>{
@@ -269,12 +260,12 @@ function viewSync(){
     <div class="install-tip">${icon('lock','var(--muted)',16)} <b>Private &amp; secure:</b> data lives in your own Supabase, locked behind a household code <b>plus</b> PIN.</div>`;
   }else{
     const statusTxt={idle:'Synced ✅',pushing:'Saving…',pulling:'Checking…',error:'Offline / retrying ⚠️'}[sync.status]||'';
-    html+=`<div class="card"><div class="row"><span class="b">Household active</span><span class="pill ${sync.status==='error'?'p-red':'p-green'}">${statusTxt}</span></div>
+    html+=`<div class="card"><div class="row"><span class="b">Household active</span><span data-sync-state class="pill ${sync.status==='error'?'p-red':'p-green'}">${statusTxt}</span></div>
       <p class="muted sm" style="margin:10px 0 4px">Share this code + your PIN with the other iPhone.</p>
       <div style="background:var(--card2);border-radius:10px;padding:12px;margin-top:8px;word-break:break-all;font-family:ui-monospace,monospace;font-size:13px">${esc(sync.id)}</div>
       <div style="height:10px"></div><button class="btn ghost" onclick="copyCode()">Copy household code</button>
-      <div style="height:8px"></div><button class="btn ghost" onclick="syncNow()">Sync now</button>
-      <div class="muted xs" style="margin-top:10px">Last updated: ${DB.updatedAt?fmtDateTime(DB.updatedAt):'—'} · auto-syncs every 5s</div></div>
+      <div style="height:8px"></div><button class="btn ghost" onclick="syncNow()">Force sync</button>
+      <div class="muted xs" data-sync-detail style="margin-top:10px">Last successful sync: ${sync.lastSyncedAt?fmtDateTime(sync.lastSyncedAt):'Not yet'} · auto-refresh every 12 hours</div></div>
     <button class="del" onclick="if(confirm('Stop syncing on this phone? Data stays here but stops updating the other phone.'))disableSync()">Turn off sync on this device</button>`;
   }
   html+=`<h2>Backup &amp; data</h2>
@@ -285,6 +276,6 @@ function viewSync(){
   return html;
 }
 async function copyCode(){try{if(!navigator.clipboard)throw new Error('Clipboard unavailable');await navigator.clipboard.writeText(sync.id);alert('Household code copied.');}catch(e){alert('Could not copy the code. Select and copy the household code shown above.');}}
-function fmtDateTime(iso){try{return new Date(iso).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return '—';}}
+function fmtDateTime(iso){try{return new Date(iso).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return '—';}}
 
 
