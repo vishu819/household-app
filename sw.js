@@ -1,5 +1,5 @@
 // Service worker: cache the app shell so it works offline and feels native.
-const CACHE = 'household-v56';
+const CACHE = 'household-v57';
 const ASSETS = [
   './assets/household-logo-finance.svg',
   './theme.css',
