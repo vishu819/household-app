@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-A local-first household finance PWA — one `index.html` file with all CSS/JS inlined, a service worker for offline, and optional Supabase-based two-phone sync. No framework, no build step.
+A local-first household finance PWA — `index.html` with inline CSS plus `app.js`, `views.js`, `savings.js`, and `institutions.js`, a service worker for offline, and optional Supabase-based two-phone sync. No framework, no build step.
 
 ## Run / Deploy
 
@@ -52,7 +52,7 @@ All dates use **Asia/Kolkata** (IST) via `Intl.DateTimeFormat` with `timeZone:'A
 ### Sync
 
 - Opt-in, PIN-protected, uses Supabase RPC functions (`household_create`, `household_get`, `household_put`).
-- Push on every data save (debounced 800ms), pull every 5 seconds.
+- Push on every data save (debounced 800ms), remote refresh every 12 hours while active, with a due check on focus/resume and an icon-only Force sync action. Successful upload/read timestamps and pending edits are stored per device; a failed request does not advance the success timestamp.
 - `lastSerialized` tracks the last pushed snapshot so unchanged data skips network.
 
 ### Templating
@@ -74,3 +74,10 @@ Each view is a function returning an HTML string (e.g. `viewHome()`, `viewSplit(
 The `supabase-setup.sql` file defines the backend schema. Run it once in the Supabase SQL editor. Two files are not directly served:
 - `supabase-setup.sql` — schema + RPC functions
 - `supabase-cleanup-tests.sql` — optional test data cleanup
+
+### Savings forms and directory
+
+- `savings.js` owns type-specific FD/RD/fund/gold/custom forms, deposit tenure validation, and the institution combobox. Deposit rates are recorded, not used to estimate guaranteed interest.
+- `institutions.js` is a local bank/broker directory. Logos are served from `assets/institutions/`; `sources.json` records their provenance. Missing logos fall back to initials. No typed search is sent to an external service.
+- `screenHeader()` supplies the same compact header for all six tabs. Its sync icon retains the accessible name "Force sync".
+- Run `node tests/regression.mjs` and `node tests/local-savings-sync.mjs` for dependency-free tests using synthetic data and mocked sync.

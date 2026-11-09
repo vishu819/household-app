@@ -6,6 +6,8 @@ const { fileURLToPath } = await import('node:url');
 const root = fileURLToPath(new URL('../', import.meta.url));
 const app = fs.readFileSync(root + 'app.js', 'utf8');
 const views = fs.readFileSync(root + 'views.js', 'utf8');
+const savingsSource = fs.readFileSync(root + 'savings.js', 'utf8');
+const institutionsSource = fs.readFileSync(root + 'institutions.js', 'utf8');
 const alerts = [];
 const FixedDate = class extends Date {
   constructor(...args) { super(...(args.length ? args : ['2026-11-09T06:00:00Z'])); }
@@ -18,7 +20,7 @@ const context = vm.createContext({
   window: { matchMedia: () => ({ matches: true }), scrollY: 0, scrollTo() {} },
   navigator: {}, alert: message => alerts.push(message),
 });
-vm.runInContext(app + '\n' + views, context);
+vm.runInContext(app + '\n' + institutionsSource + '\n' + savingsSource + '\n' + views, context);
 const run = code => vm.runInContext(code, context);
 run(`DB={people:[{id:'p',name:'Test',commonPct:50,personalPct:50}],budgets:[
   {id:'b',person:'Test',month:'2026-10',salary:1000,fixedItems:[{k:'item',n:'Rent',a:100,t:'Expense'}]}
@@ -45,10 +47,10 @@ assert.equal(run('rdCurrentValue(DB.savings[0])'), 300);
 const home = run('viewHome()'), savings = run('viewSavings()');
 assert.equal((home.match(/₹300/g) || []).length, 2, 'Home total and maturity row use the RD value');
 assert(!home.includes('₹999'));
-assert(savings.includes('Total ₹300'));
+assert(savings.includes('₹300'));
 run(`DB.savings.push({id:'fd',amount:500,type:'FD',bank:'FD bank',owner:'Test',maturity:'2026-11-27'})`);
 assert(run('viewHome()').includes('₹800'));
-assert(run('viewSavings()').includes('Total ₹800'));
+run("tab='savings'");assert(run('screenHeader()').includes('₹800'));
 console.log('PASS: Home and Savings agree for recurring deposits and mixed FD/RD holdings');
 
 await run('copyCode()');

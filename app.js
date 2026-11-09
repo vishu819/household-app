@@ -47,10 +47,10 @@ function changeMonth(delta){
 }
 function monthBar(){
   const nextIsFuture=isFutureMonth(shiftMonth(viewMonth,1));
-  return `<div class="row monthbar">
-    <button class="btn sm ghost" style="width:auto" onclick="changeMonth(-1)">‹</button>
+  return `<div class="row monthbar" role="group" aria-label="Viewed month">
+    <button class="btn sm ghost" style="width:auto" aria-label="Previous month" onclick="changeMonth(-1)">‹</button>
     <span class="b month-label">${monthLabel(viewMonth)}${viewMonth===thisMonth()?'':''}</span>
-    <button class="btn sm ghost" style="width:auto${nextIsFuture?';opacity:.35':''}" ${nextIsFuture?'disabled':''} onclick="changeMonth(1)">›</button>
+    <button class="btn sm ghost" style="width:auto${nextIsFuture?';opacity:.35':''}" ${nextIsFuture?'disabled':''} aria-label="Next month" onclick="changeMonth(1)">›</button>
   </div>`;
 }
 
@@ -203,7 +203,8 @@ const SYNC_KEY='family-finance-sync';
 const SB_URL='https://eqhflowsnjzewfvlwkto.supabase.co';
 const SB_KEY='sb_publishable_FdhMtetQeLUGzbNlyw4qIw_lBMcFYbh';
 let sync={enabled:false,id:null,pin:null,status:'off'};
-let pushTimer=null, pullTimer=null;
+const SYNC_INTERVAL=12*60*60*1000;
+let pushTimer=null,pullTimer=null,pullInFlight=false,pushInFlight=false;
 function nowISO(){return new Date().toISOString();}
 async function rpc(fn,body){
   const r=await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',cache:'no-store',
@@ -211,13 +212,16 @@ async function rpc(fn,body){
   if(!r.ok)throw new Error('rpc '+fn+' '+r.status);
   const t=await r.text();return t?JSON.parse(t):null;
 }
-function loadSync(){try{const s=JSON.parse(localStorage.getItem(SYNC_KEY));if(s&&s.id&&s.pin){sync={enabled:true,id:s.id,pin:s.pin,status:'idle'};}}catch(e){}}
-function persistSync(){localStorage.setItem(SYNC_KEY,JSON.stringify({id:sync.id,pin:sync.pin}));}
+function loadSync(){try{const s=JSON.parse(localStorage.getItem(SYNC_KEY));if(s&&s.id&&s.pin){sync={enabled:true,id:s.id,pin:s.pin,status:'idle',lastPulledAt:s.lastPulledAt||null,lastSyncedAt:s.lastSyncedAt||null,pendingPush:!!s.pendingPush};}}catch(e){}}
+function persistSync(){localStorage.setItem(SYNC_KEY,JSON.stringify({id:sync.id,pin:sync.pin,lastPulledAt:sync.lastPulledAt||null,lastSyncedAt:sync.lastSyncedAt||null,pendingPush:!!sync.pendingPush}));}
+function syncConnection(){return sync.enabled&&sync.id?{id:sync.id,pin:sync.pin}:null;}
+function sameSyncConnection(connection){return !!connection&&sync.enabled&&sync.id===connection.id&&sync.pin===connection.pin;}
+function markSynced(pulled=false){if(!sync.enabled)return;sync.lastSyncedAt=nowISO();if(pulled)sync.lastPulledAt=sync.lastSyncedAt;persistSync();}
 async function createHousehold(pin){
   pin=(pin||'').trim();if(pin.length<4){alert('Choose a PIN of at least 4 digits.');return;}
   sync.status='pushing';renderIfSync();
   try{const id=await rpc('household_create',{p_pin:pin,p_data:DB});if(!id||typeof id!=='string')throw 0;
-    sync={enabled:true,id:id,pin:pin,status:'idle'};persistSync();startPull();renderIfSync();}
+    sync={enabled:true,id:id,pin:pin,status:'idle'};markSynced(true);lastSerialized=JSON.stringify(DB);startPull();render();}
   catch(e){sync.status='error';renderIfSync();alert('Could not create household. Check connection and try again.');}
 }
 async function joinHousehold(id,pin){
@@ -226,37 +230,82 @@ async function joinHousehold(id,pin){
   try{const rows=await rpc('household_get',{p_id:id,p_pin:pin});if(!rows||!rows.length)throw 0;
     const remote=rows[0].data;if(!remote||typeof remote!=='object')throw 0;
     DB=remote;migrate();if(!DB.rev)DB.rev=rows[0].rev||1;localStorage.setItem(KEY,JSON.stringify(DB));
-    sync={enabled:true,id:id,pin:pin,status:'idle'};persistSync();startPull();render();}
+    sync={enabled:true,id:id,pin:pin,status:'idle'};markSynced(true);lastSerialized=JSON.stringify(DB);startPull();render();}
   catch(e){sync.status='error';renderIfSync();alert('Could not join. Double-check the household code and PIN.');}
 }
-function disableSync(){clearInterval(pullTimer);sync={enabled:false,id:null,pin:null,status:'off'};localStorage.removeItem(SYNC_KEY);render();}
+function disableSync(){clearTimeout(pullTimer);clearTimeout(pushTimer);sync={enabled:false,id:null,pin:null,status:'off'};localStorage.removeItem(SYNC_KEY);render();}
 function syncPush(){
-  if(!sync.enabled||!sync.id)return;clearTimeout(pushTimer);
+  if(!sync.enabled||!sync.id)return;
+  sync.pendingPush=true;persistSync();clearTimeout(pushTimer);
   pushTimer=setTimeout(async()=>{
-    const s=JSON.stringify(DB);
-    if(s===lastSerialized){sync.status='idle';renderIfSync();return;} // nothing changed — skip network
-    sync.status='pushing';renderIfSync();
-    try{await rpc('household_put',{p_id:sync.id,p_pin:sync.pin,p_data:DB,p_rev:DB.rev||1});lastSerialized=s;sync.status='idle';}
-    catch(e){sync.status='error';}renderIfSync();},800);
+    if(pushInFlight||pullInFlight){syncPush();return;}
+    const connection=syncConnection();if(!connection)return;
+    const snapshot=JSON.stringify(DB);
+    if(snapshot===lastSerialized&&!sync.pendingPush){sync.status='idle';renderIfSync();return;}
+    pushInFlight=true;sync.status='pushing';renderIfSync();
+    try{
+      const remoteRev=await rpc('household_put',{p_id:connection.id,p_pin:connection.pin,p_data:JSON.parse(snapshot),p_rev:JSON.parse(snapshot).rev||1});if(!sameSyncConnection(connection))return;if(Number(remoteRev)>(JSON.parse(snapshot).rev||1)){sync.conflict=true;throw new Error('Newer remote revision');}sync.conflict=false;
+      lastSerialized=snapshot;sync.pendingPush=JSON.stringify(DB)!==snapshot;markSynced();sync.status='idle';
+    }catch(e){if(sameSyncConnection(connection))sync.status='error';}
+    finally{pushInFlight=false;renderIfSync();}
+  },800);
 }
 async function syncNow(){
   if(!sync.enabled||!sync.id){go('sync');return;}
-  clearTimeout(pushTimer);sync.status='pushing';renderIfSync();
-  try{await rpc('household_put',{p_id:sync.id,p_pin:sync.pin,p_data:DB,p_rev:DB.rev||1});lastSerialized=JSON.stringify(DB);}
-  catch(e){sync.status='error';renderIfSync();return;}
-  await syncPull(false);
+  if(pushInFlight||pullInFlight)return;
+  const connection=syncConnection();
+  clearTimeout(pushTimer);
+  if(sync.pendingPush||JSON.stringify(DB)!==lastSerialized){
+    pushInFlight=true;sync.status='pushing';renderIfSync();
+    const snapshot=JSON.stringify(DB);
+    try{const remoteRev=await rpc('household_put',{p_id:connection.id,p_pin:connection.pin,p_data:JSON.parse(snapshot),p_rev:JSON.parse(snapshot).rev||1});if(!sameSyncConnection(connection))return;if(Number(remoteRev)>(JSON.parse(snapshot).rev||1)){sync.conflict=true;throw new Error('Newer remote revision');}sync.conflict=false;lastSerialized=snapshot;sync.pendingPush=JSON.stringify(DB)!==snapshot;markSynced();}
+    catch(e){if(sameSyncConnection(connection))sync.status='error';renderIfSync();return;}
+    finally{pushInFlight=false;}
+  }
+  if(sync.pendingPush){syncPush();return;}
+  await syncPull(false);startPull();
 }
 async function syncPull(silent){
-  if(!sync.enabled||!sync.id)return;if(!silent){sync.status='pulling';renderIfSync();}
-  try{const rows=await rpc('household_get',{p_id:sync.id,p_pin:sync.pin});const row=rows&&rows[0];
-    if(row&&row.data&&typeof row.data==='object'&&(row.rev||0)>(DB.rev||0)){
-      DB=row.data;migrate();lastSerialized=JSON.stringify(DB);localStorage.setItem(KEY,lastSerialized);
-      if(!silent||tab!=='sync')render();else renderIfSync();}
-    if(sync.status!=='pushing')sync.status='idle';}
-  catch(e){sync.status='error';}renderIfSync();
+  if(!sync.enabled||!sync.id||pullInFlight||pushInFlight)return;
+  // Unsent edits are pushed first; a routine refresh must not discard them.
+  if(sync.pendingPush){await syncNow();return;}
+  const connection=syncConnection();
+  pullInFlight=true;if(!silent){sync.status='pulling';renderIfSync();}
+  try{
+    const rows=await rpc('household_get',{p_id:connection.id,p_pin:connection.pin});if(!sameSyncConnection(connection))return;const row=rows&&rows[0];
+    if(!row||!row.data||typeof row.data!=='object')throw new Error('Household unavailable');
+    if(sync.pendingPush){sync.status='idle';return;}
+    if((row.rev||0)>(DB.rev||0)){
+      if(document.getElementById('modal')?.classList.contains('show'))throw new Error('Finish editing before refreshing');
+      DB=row.data;migrate();lastSerialized=JSON.stringify(DB);localStorage.setItem(KEY,lastSerialized);render();
+    }
+    sync.status='idle';markSynced(true);
+  }catch(e){if(sameSyncConnection(connection))sync.status='error';}
+  finally{pullInFlight=false;renderIfSync();}
 }
-function startPull(){clearInterval(pullTimer);pullTimer=setInterval(()=>syncPull(true),5000);}
-function renderIfSync(){if(tab==='sync')render();updateSyncBadge();}
+async function syncIfDue(){
+  if(!sync.enabled||pullInFlight||pushInFlight)return;
+  if(sync.pendingPush){await syncNow();return;}
+  if(sync.lastPulledAt&&Date.now()-Date.parse(sync.lastPulledAt)<SYNC_INTERVAL)return;
+  await syncPull(true);
+}
+function startPull(){
+  clearTimeout(pullTimer);if(!sync.enabled)return;
+  const elapsed=sync.lastPulledAt?Date.now()-Date.parse(sync.lastPulledAt):SYNC_INTERVAL;
+  const delay=Math.max(1000,SYNC_INTERVAL-elapsed);
+  pullTimer=setTimeout(async()=>{await syncIfDue();if(sync.status==='error'){pullTimer=setTimeout(startPull,SYNC_INTERVAL);}else startPull();},delay);
+}
+function lastSyncLabel(){
+  if(!sync.enabled)return 'Local only';
+  if(sync.status==='pushing')return 'Saving…';if(sync.status==='pulling')return 'Refreshing…';if(sync.status==='error')return sync.conflict?'Conflict · edits kept':'Offline · retry';
+  if(!sync.lastSyncedAt)return 'Not synced yet';
+  const d=new Date(sync.lastSyncedAt);if(!Number.isFinite(d.getTime()))return 'Not synced yet';
+  const time=d.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'});
+  const day=d.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+  return day===istToday()?'Last '+time:'Last '+d.toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short'})+' '+time;
+}
+function headerSync(){const busy=sync.status==='pushing'||sync.status==='pulling',label=lastSyncLabel();return `<button class="force-sync" onclick="syncNow()" aria-label="Force sync" title="Force sync" ${busy?'disabled':''}>${icon('sync','var(--accent)',16)}</button><span class="last-sync" aria-live="polite" title="${esc(label)}">${esc(label)}</span>`;}
+function renderIfSync(){const state=document.querySelector('[data-sync-state]');if(state){state.textContent=({idle:'Synced',pushing:'Saving…',pulling:'Refreshing…',error:'Sync needs attention'})[sync.status]||'';state.className='pill '+(sync.status==='error'?'p-red':'p-green');}const el=document.getElementById('headerSync');if(el)el.innerHTML=headerSync();const detail=document.querySelector('[data-sync-detail]');if(detail)detail.textContent='Last successful sync: '+(sync.lastSyncedAt?fmtDateTime(sync.lastSyncedAt):'Not yet')+' · auto-refresh every 12 hours';updateSyncBadge();}
 function updateSyncBadge(){
   const ic=document.getElementById('syncIc');if(!ic)return;
   const dot=sync.enabled?(sync.status==='error'?'#ff6b7d':(sync.status==='pushing'||sync.status==='pulling'?'#ffc44d':'#3ddc97')):null;
@@ -321,7 +370,7 @@ function avatarOf(name){const p=personBy(name);return p?(p.name||'?')[0].toUpper
 function av(name){const p=personBy(name);const c=p?p.color:'#888';const initial=p?(p.name||'?')[0].toUpperCase():'?';return `<span class="ava" style="border-color:${c};background:${c}22;color:${c};font-weight:800;font-size:12px">${initial}</span>`;}
 // Find a linked budget subcategory {person,item} by its key, in the current month.
 // Calculate RD current value: monthly deposit × months elapsed since start
-function rdCurrentValue(f){if(f.type!=='Recurring Deposit'||!f.rdMonthly||!f.rdStart)return null;const s=f.rdStart.split('-');if(s.length<3)return null;const start=new Date(+s[0],+s[1]-1,+s[2]);const now=new Date();const months=(now.getFullYear()-start.getFullYear())*12+(now.getMonth()-start.getMonth())+1;return months>0?f.rdMonthly*months:0;}
+function rdCurrentValue(f){if(!['recurring deposit','rd'].includes(String(f.type).toLowerCase().trim())||!f.rdMonthly||!f.rdStart)return null;const s=f.rdStart.split('-');if(s.length<3)return null;const start=new Date(+s[0],+s[1]-1,+s[2]);const now=new Date();const months=(now.getFullYear()-start.getFullYear())*12+(now.getMonth()-start.getMonth())+1;return months>0?f.rdMonthly*months:0;}
 function subByKey(k){for(const b of DB.budgets.filter(x=>x.month===curMonth())){const it=(b.fixedItems||[]).find(i=>i.k===k);if(it)return{b,it};}return null;}
 // All Expense-tagged fixed subcategories this month, for the link dropdown.
 function expenseSubs(){const out=[];DB.budgets.filter(b=>b.month===curMonth()).forEach(b=>(b.fixedItems||[]).forEach(i=>{if(i.t==='Expense')out.push({k:i.k,label:`${b.person}: ${i.n} (${fmt(i.a)})`});}));return out;}
@@ -455,54 +504,6 @@ function saveBudget(id){
   save();closeModal();render();
 }
 
-// --- Savings holding ---
-function openSaving(id){
-  const f=id?DB.savings.find(x=>x.id===id):{owner:DB.people[0]?.name||'',type:DB.savingsTypes[0],bank:'',amount:'',maturity:'',tenure:'',source:'Bank',status:'Running',phone:'',nominee:'',rdMonthly:0,rdStart:''};
-  const types=DB.savingsTypes.map(t=>`<option ${t===f.type?'selected':''}>${esc(t)}</option>`).join('');
-  const isRD=f.type==='Recurring Deposit';
-  const isFund=f.type==='Arbitrage Fund'||f.type==='Liquid Fund';
-  openModal(`<h3>${id?'Edit':'Add'} savings</h3>
-    <label>Type</label><select id="f_type" onchange="onSavingTypeChange()">${types}</select>
-    <label>Owner (actor)</label><select id="f_owner">${DB.people.map(p=>`<option ${p.name===f.owner?'selected':''}>${esc(p.name)}</option>`).join('')}${DB.people.some(p=>p.name===f.owner)?'':`<option selected>${esc(f.owner)}</option>`}</select>
-    <label id="f_bank_label">${isFund?'Broker':'Bank / Provider'}</label><input id="f_bank" value="${esc(f.bank)}">
-    <label>Amount (₹)</label><input id="f_amount" type="number" inputmode="numeric" value="${f.amount}">
-    <div id="rd_fields" style="${isRD?'':'display:none'}">
-      <label>Monthly deposit (₹)</label><input id="f_rd_monthly" type="number" inputmode="numeric" value="${f.rdMonthly||''}">
-      <label>Start date</label><input id="f_rd_start" type="date" value="${f.rdStart||''}">
-    </div>
-    <label>Maturity input</label><select id="f_mat_mode" onchange="onMatModeChange()"><option value="date">Enter date</option><option value="days">Enter days from now</option></select>
-    <div id="f_mat_date_wrap"><label>Maturity date</label><input id="f_mat" type="date" value="${f.maturity}"></div>
-    <div id="f_mat_days_wrap" style="display:none"><label>Tenure in days</label><input id="f_mat_days" type="number" inputmode="numeric" placeholder="e.g. 666"></div>
-    <label>Tenure (display)</label><input id="f_ten" value="${esc(f.tenure)}" placeholder="1Y 6M">
-    <label>Source</label><input id="f_src" value="${esc(f.source)}">
-    <label>Status</label><select id="f_st"><option ${f.status==='Running'?'selected':''}>Running</option><option ${f.status==='Matured'?'selected':''}>Matured</option></select>
-    <label>Phone</label><input id="f_ph" type="tel" value="${esc(f.phone)}">
-    <label>Nominee</label><input id="f_nom" value="${esc(f.nominee)}">
-    <div style="height:16px"></div><button class="btn" onclick="saveSaving('${id||''}')">Save</button>
-    ${id?`<button class="del" onclick="delItem('savings','${id}')">Delete</button>`:''}`);
-}
-function onSavingTypeChange(){
-  const type=val('f_type');
-  document.getElementById('f_bank_label').textContent=(type==='Arbitrage Fund'||type==='Liquid Fund')?'Broker':'Bank / Provider';
-  document.getElementById('rd_fields').style.display=type==='Recurring Deposit'?'block':'none';
-}
-function onMatModeChange(){
-  const mode=val('f_mat_mode');
-  document.getElementById('f_mat_date_wrap').style.display=mode==='date'?'block':'none';
-  document.getElementById('f_mat_days_wrap').style.display=mode==='days'?'block':'none';
-}
-function saveSaving(id){
-  let maturity=val('f_mat'),tenure=val('f_ten')||'-';
-  if(val('f_mat_mode')==='days'){
-    const days=+val('f_mat_days')||0;
-    if(days>0){const d=new Date();d.setDate(d.getDate()+days);maturity=d.toISOString().slice(0,10);tenure=days+' days';}
-  }
-  const o={type:val('f_type'),owner:val('f_owner'),bank:val('f_bank'),amount:+val('f_amount')||0,maturity,tenure,
-    source:val('f_src'),status:val('f_st'),phone:val('f_ph'),nominee:val('f_nom'),
-    rdMonthly:val('f_rd_monthly')?+val('f_rd_monthly')||0:0,rdStart:val('f_rd_start')||''};
-  if(id)Object.assign(DB.savings.find(x=>x.id===id),o);else DB.savings.push({id:uid(),...o});
-  save();closeModal();render();
-}
 // --- Manage savings types ---
 function openTypes(){
   openModal(`<h3>Savings types</h3><p class="muted sm">Used in the Type dropdown when adding a holding.</p>
@@ -585,10 +586,18 @@ function importData(){
   inp.click();
 }
 
+function screenHeader(){
+  const specs={home:['This Month','Household overview'],split:['Monthly Split','Salary → fixed → common/personal savings'],expenses:['Expenses','Planned bills & unplanned spends'],analytics:['Analytics','Saving · investing · expenses'],savings:['Savings','Your household holdings'],sync:['Settings','Actors, sync & more']};
+  const [title,subtitle]=specs[tab];
+  const monthly=['home','split','expenses','analytics'].includes(tab);
+  const headerHoldings=tab==='savings'?DB.savings.filter(f=>!savingsFilter||f.type===savingsFilter):[];
+  let context=monthly?monthBar():`<div class="header-context">${tab==='savings'?fmt(headerHoldings.reduce((s,f)=>s+(rdCurrentValue(f)??f.amount),0))+' · '+headerHoldings.length+' holdings':'Device & household'}</div>`;
+  return `<header class="app-header"><div class="header-title"><h1>${tab==='home'&&curMonth()!==thisMonth()?'Overview':title}</h1></div><div class="header-period">${context}</div><div id="headerSync" class="header-sync">${headerSync()}</div><button class="eye" id="eye" onclick="toggleHide()" aria-label="Hide amounts"></button></header>`;
+}
 /* ============ render ============ */
 function render(){
   const v={home:viewHome,split:viewSplit,expenses:viewExpenses,analytics:viewAnalytics,savings:viewSavings,sync:viewSync}[tab];
-  document.getElementById('app').innerHTML=v();
+  document.getElementById('app').innerHTML=screenHeader()+`<main class="screen-content">${v()}</main>`;
   document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
   document.getElementById('fab').style.display=(tab==='home'||tab==='sync'||tab==='analytics')?'none':'flex';
   const eye=document.getElementById('eye');
