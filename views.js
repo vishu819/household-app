@@ -239,7 +239,7 @@ function viewSavings(){
 }
 
 function viewSync(){
-  let html='';
+  let html='<h2>Vault</h2><button class="vault-row" onclick="go(\'vaultSettings\')"><span>Vault settings, backup & recovery</span><span>›</span></button>';
   // --- Profiles / actors ---
   html+=`<h2>Actors</h2>`;
   DB.people.forEach(p=>{

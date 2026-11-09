@@ -308,7 +308,7 @@ function lastSyncLabel(){
   const day=d.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
   return day===istToday()?'Last '+time:'Last '+d.toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short'})+' '+time;
 }
-function headerSync(){const busy=sync.status==='pushing'||sync.status==='pulling',label=tab==='vault'?vaultSyncLabel:lastSyncLabel();return `<button class="force-sync" onclick="syncCurrentScreen()" aria-label="Force sync" title="Force sync" ${busy?'disabled':''}>${icon('sync','var(--accent)',16)}</button><span class="last-sync" aria-live="polite" title="${esc(label)}">${esc(tab==='vault'&&label.length>38?'Sync needs attention':label)}</span>`;}
+function headerSync(){const busy=sync.status==='pushing'||sync.status==='pulling',label=['vault','vaultSettings'].includes(tab)?vaultSyncLabel:lastSyncLabel();return `<button class="force-sync" onclick="syncCurrentScreen()" aria-label="${['vault','vaultSettings'].includes(tab)&&!vaultDriveConnected?'Connect Google Drive':'Force sync'}" title="${['vault','vaultSettings'].includes(tab)&&!vaultDriveConnected?'Connect Google Drive':'Force sync'}" ${busy?'disabled':''}>${icon('sync','var(--accent)',16)}</button><span class="last-sync" aria-live="polite" title="${esc(label)}">${esc(['vault','vaultSettings'].includes(tab)&&label.length>38?'Sync needs attention':label)}</span>`;}
 function renderIfSync(){const state=document.querySelector('[data-sync-state]');if(state){state.textContent=({idle:'Synced',pushing:'Saving…',pulling:'Refreshing…',error:'Sync needs attention'})[sync.status]||'';state.className='pill '+(sync.status==='error'?'p-red':'p-green');}const el=document.getElementById('headerSync');if(el)el.innerHTML=headerSync();const detail=document.querySelector('[data-sync-detail]');if(detail)detail.textContent='Last successful sync: '+(sync.lastSyncedAt?fmtDateTime(sync.lastSyncedAt):'Not yet')+' · auto-refresh every 12 hours';updateSyncBadge();}
 function updateSyncBadge(){
   const ic=document.getElementById('syncIc');if(!ic)return;
@@ -353,6 +353,7 @@ const ICONS={
   settings:'<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2" fill="var(--bg)"/><circle cx="16" cy="12" r="2" fill="var(--bg)"/><circle cx="10" cy="18" r="2" fill="var(--bg)"/>',
   download:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/>',
   upload:'<path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/>',
+  vault:'<rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="12" cy="12" r="4"/><path d="M12 8v2m0 4v2m-4-4h2m4 0h2M21 8h1m-1 8h1"/>',
   lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
   wallet:'<path d="M3 7h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/><circle cx="16" cy="13" r="1.3"/>',
   save:'<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>',
@@ -592,25 +593,25 @@ function importData(){
 }
 
 function screenHeader(){
-  const specs={home:['This Month','Household overview'],split:['Monthly Split','Salary → fixed → common/personal savings'],expenses:['Expenses','Planned bills & unplanned spends'],analytics:['Analytics','Saving · investing · expenses'],savings:['Savings','Your household holdings'],vault:['Vault','Your household essentials'],more:['More','Tools & preferences'],sync:['Settings','Actors, sync & more']};
+  const specs={home:['This Month','Household overview'],split:['Monthly Split','Salary → fixed → common/personal savings'],expenses:['Expenses','Planned bills & unplanned spends'],analytics:['Analytics','Saving · investing · expenses'],savings:['Savings','Your household holdings'],vault:['Vault','Your household essentials'],vaultSettings:['Vault settings','Backup & connection'],more:['More','Tools & preferences'],sync:['Settings','Actors, sync & more']};
   const [title,subtitle]=specs[tab];
   const monthly=['home','split','expenses','analytics'].includes(tab);
   const headerHoldings=tab==='savings'?DB.savings.filter(f=>!savingsFilter||f.type===savingsFilter):[];
   let context=monthly?monthBar():`<div class="header-context">${tab==='savings'?fmt(headerHoldings.reduce((s,f)=>s+(rdCurrentValue(f)??f.amount),0))+' · '+headerHoldings.length+' holdings':tab==='vault'?'Credentials & documents':tab==='more'?'Tools & preferences':'Device & household'}</div>`;
-  return `<header class="app-header"><div class="header-title"><h1>${tab==='home'&&curMonth()!==thisMonth()?'Overview':title}</h1></div><div class="header-period">${context}</div><div id="headerSync" class="header-sync">${headerSync()}</div><button class="eye" id="eye" onclick="toggleHide()" aria-label="Hide amounts"></button></header>`;
+  return `<header class="app-header"><div class="header-title"><h1><span class="header-title-icon">${icon(({home:'home',split:'person',expenses:'wallet',analytics:'invest',savings:'save',vault:'vault',vaultSettings:'settings',more:'settings',sync:'settings'})[tab],null,19)}</span>${tab==='home'&&curMonth()!==thisMonth()?'Overview':title}</h1></div><div class="header-period">${context}</div><div id="headerSync" class="header-sync">${headerSync()}</div><button class="eye" id="eye" onclick="toggleHide()" aria-label="Hide amounts"></button></header>`;
 }
 /* ============ render ============ */
 function render(){
-  const v={home:viewHome,split:viewSplit,expenses:viewExpenses,analytics:viewAnalytics,savings:viewSavings,vault:viewVault,more:viewMore,sync:viewSync}[tab];
+  const v={home:viewHome,split:viewSplit,expenses:viewExpenses,analytics:viewAnalytics,savings:viewSavings,vault:viewVault,vaultSettings:viewVault,more:viewMore,sync:viewSync}[tab];
   const app=document.getElementById('app');
   if(!document.getElementById('shellHeader'))app.innerHTML='<div id="shellHeader"></div><main id="regularContent" class="screen-content"></main><main id="vaultContent" class="screen-content" hidden></main>';
   document.getElementById('shellHeader').innerHTML=screenHeader();
   const vaultContent=document.getElementById('vaultContent'),regularContent=document.getElementById('regularContent');
-  const inVault=tab==='vault';vaultContent.hidden=!inVault;regularContent.hidden=inVault;
-  if(inVault){if(!sync.enabled||verifiedVaultHousehold!==sync.id){destroyHouseholdVault();vaultContent.innerHTML=viewVaultGate();}else if(!document.getElementById('encryptedVaultFrame'))vaultContent.innerHTML=viewVault();}
-  else{regularContent.innerHTML=v();const frame=document.getElementById('encryptedVaultFrame');if(frame)frame.contentWindow.postMessage({type:'household-vault-lock'},location.origin);}
-  document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('active',(b.dataset.tab===tab||(b.dataset.tab==='more'&&['analytics','sync'].includes(tab))));if((b.dataset.tab===tab||(b.dataset.tab==='more'&&['analytics','sync'].includes(tab))))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
-  document.getElementById('fab').style.display=(tab==='home'||tab==='sync'||tab==='analytics'||tab==='more'||(tab==='vault'&&vaultPanel==='encrypted'))?'none':'flex';
+  const inVault=['vault','vaultSettings'].includes(tab);document.body.classList.toggle('vault-screen-active',inVault);vaultContent.hidden=!inVault;regularContent.hidden=inVault;
+  if(inVault){if(!sync.enabled||verifiedVaultHousehold!==sync.id){destroyHouseholdVault();vaultContent.innerHTML=viewVaultGate();}else if(!document.getElementById('encryptedVaultFrame'))vaultContent.innerHTML=viewVault();document.getElementById('encryptedVaultFrame')?.contentWindow.postMessage({type:'household-vault-resume'},location.origin);const sectionFrame=document.getElementById('encryptedVaultFrame'),section=tab==='vaultSettings'?'settings':'credentials';if(sectionFrame&&sectionFrame.dataset.section!==section){sectionFrame.dataset.section=section;sectionFrame.contentWindow.postMessage({type:'household-vault-section',section},location.origin);}}
+  else{regularContent.innerHTML=v();const frame=document.getElementById('encryptedVaultFrame');if(frame)frame.contentWindow.postMessage({type:'household-vault-background'},location.origin);}
+  document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('active',(b.dataset.tab===tab||(b.dataset.tab==='more'&&['analytics','sync','vaultSettings'].includes(tab))));if((b.dataset.tab===tab||(b.dataset.tab==='more'&&['analytics','sync','vaultSettings'].includes(tab))))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+  document.getElementById('fab').style.display=(tab==='vaultSettings'||tab==='home'||tab==='sync'||tab==='analytics'||tab==='more'||(tab==='vault'&&vaultPanel==='encrypted'))?'none':'flex';
   const eye=document.getElementById('eye');
   eye.innerHTML=hideMoney
     ? '<svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 9 4.5 10 7-.4 1-1.3 2.4-2.6 3.6M6.6 6.6C4.6 7.9 3.4 9.7 3 11c1 2.5 5 7 9 7 1.4 0 2.7-.3 3.9-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'
@@ -623,4 +624,4 @@ function render(){
   updateSyncBadge();window.scrollTo(0,0);
 }
 
-function syncCurrentScreen(){const frame=tab==='vault'?document.getElementById('encryptedVaultFrame'):null;if(frame)frame.contentWindow.postMessage({type:'household-vault-sync'},location.origin);else syncNow();}
+function syncCurrentScreen(){const frame=['vault','vaultSettings'].includes(tab)?document.getElementById('encryptedVaultFrame'):null;if(frame)frame.contentWindow.postMessage({type:'household-vault-sync'},location.origin);else syncNow();}

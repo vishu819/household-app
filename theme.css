@@ -1,0 +1,11 @@
+/* Shared Household typography, colours and component tokens. */
+@font-face{font-family:Inter;src:url('inter.woff2') format('woff2');font-weight:100 900;font-display:swap;font-style:normal}
+:root{
+    color-scheme:dark;
+    --bg:#192430;--bg2:#131c27;--ink:#f5f7fb;--muted:#c0c7d1;--line:rgba(223,232,244,.19);
+    --card:#303c48;--card2:rgba(228,237,251,.07);--accent:#78b5ff;--accent2:#78b5ff;--action:#075bff;
+    --green:#b0d3ff;--amber:#ffda88;--red:#ffadb6;--violet:#c1caff;--pink:#edbdd5;--orange:#ffd0a0;--grad:var(--action);
+    --glass:rgba(222,233,247,.11);--glass-border:rgba(228,236,248,.24);
+    --safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)
+  }
+:root{--blue:var(--action);--font-ui:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;--button-radius:8px;--input-radius:7px;--space-sm:8px;--space-md:12px;--space-lg:16px;--space-xl:20px;}
