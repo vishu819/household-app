@@ -9,13 +9,13 @@ function viewHome(){
   const bpct=totalBills?Math.round(paidAmt/totalBills*100):0;
   const isNow=curMonth()===thisMonth();
 
-  let html=`<div style="padding-right:52px">
+  let html=`<div>
     <h1>${isNow?'This Month':'Overview'}</h1><p class="sub">${monthLabel(curMonth())} · IST</p></div>`;
   if(sync.enabled){const t={idle:'Synced',pushing:'Saving…',pulling:'Syncing…',error:'Offline — retry'}[sync.status]||'Sync';
-    html+=`<button class="btn sm ghost" style="margin:0 0 12px" onclick="syncNow()">🔄 ${t}</button>`;}
+    html+=`<button class="btn sm ghost" style="margin:0 0 12px" onclick="syncNow()">${icon('sync','var(--accent)',16)} ${t}</button>`;}
   html+=monthBar();
   if(!window.matchMedia('(display-mode: standalone)').matches)
-    html+=`<div class="install-tip">📲 <b>Install:</b> Safari Share button → <b>Add to Home Screen</b>. Full-screen &amp; offline.</div>`;
+    html+=`<div class="install-tip">${icon('download','var(--muted)',16)} <b>Install:</b> Safari Share button → <b>Add to Home Screen</b>. Full-screen &amp; offline.</div>`;
 
   html+=`<div class="grid2">
     <div class="stat"><div class="l">${icon('wallet','var(--muted)',14)} Income</div><div class="n">${fmt(a.salary)}</div></div>
@@ -28,10 +28,10 @@ function viewHome(){
       <span class="amt" data-paidamt>${fmt(paidAmt)} / ${fmt(totalBills)}</span></div><div class="bar"><i style="width:${bpct}%"></i></div>`;
   const pending=ex.filter(e=>!e.paid).sort((x,y)=>x.dueDay-y.dueDay);
   if(pending.length){html+=`<div style="margin-top:12px">`;pending.slice(0,4).forEach(e=>{
-    html+=`<div class="exp"><button class="tick" onclick="togglePaid('${e.id}')"></button>
+    html+=`<div class="exp"><button class="tick" aria-label="Mark paid: ${esc(e.name)}" aria-pressed="false" onclick="togglePaid('${e.id}')"></button>
       <div style="flex:1"><div class="nm b">${esc(e.name)}</div><div class="muted xs">Due ${e.dueDay} · ${esc(e.paidBy)} · ${esc(e.account)}</div></div>
       <span class="amt">${fmt(e.amount)}</span></div>`;});html+=`</div>`;}
-  else html+=`<p class="muted sm" style="margin:10px 0 0">All bills ticked 🎉</p>`;
+  else html+=`<p class="muted sm" style="margin:10px 0 0">All bills ticked</p>`;
   html+=`</div>`;
 
 
@@ -63,7 +63,7 @@ function viewSplit(){
         <span style="display:flex;align-items:center;gap:10px"><span class="amt">${fmt(s.salary)}</span>
           <button class="iconbtn" onclick="event.stopPropagation();openBudget('${b.id}')" aria-label="Edit">${icon('edit','var(--muted)',17)}</button></span>
       </div>
-      <div class="propbar">${seg(s.fixExp+s.insure,'var(--red)')}${seg(s.invest,'var(--accent)')}${seg(totalSave,'var(--green)')}</div>
+      <div class="propbar">${seg(s.fixExp+s.insure,'#064dff')}${seg(s.invest,'#76adff')}${seg(totalSave,'#b8d6ff')}</div>
       <div class="legend-row">
         ${s.fixExp+s.insure>0?`<span>${icon('expense','var(--red)',12)} Expense ${fmt(s.fixExp+s.insure)}</span>`:''}
         ${s.invest>0?`<span>${icon('invest','var(--accent)',12)} Invest ${fmt(s.invest)}</span>`:''}
@@ -124,11 +124,11 @@ function viewExpenses(){
     });
     // Tracked section: external expenses
     if(tracked.length){
-      html+=h('h2',{},'📋 Tracked (not paid by us)');
+      html+=h('h2',{},'Tracked (not paid by us)');
       html+=h('div',{class:'card',style:'opacity:.8'},...tracked.map(e=>expenseRow(e,{showPaidBy:false,onClick:"openExpense('"+e.id+"')"})));
     }
     if(curMonth()>=thisMonth()){
-      html+=h('button',{class:'btn ghost',onclick:'startNewMonth()'},'📅 Start '+monthLabel(shiftMonth(curMonth(),1)));
+      html+=h('button',{class:'btn ghost',onclick:'startNewMonth()'},icon('cal','var(--accent)',17)+' Start '+monthLabel(shiftMonth(curMonth(),1)));
       html+=h('p',{class:'muted xs',style:'text-align:center;margin-top:8px'},'Copies bills & split forward (unpaid), only after the month begins. Past months never change.');
       html+=h('button',{class:'btn ghost',style:'margin-top:10px;border-color:var(--red);color:var(--red)',onclick:'resetMonth()'},'↻ Reset this month');
     }
@@ -177,19 +177,19 @@ function viewAnalytics(){
     html+=`<h2>Common savings pool</h2><div class="card">
       <div class="split-col"><span class="sm">Declared common savings</span><span class="amt sm">${fmt(a.commonSave)}</span></div>
       <div class="split-col"><span class="sm">− Unplanned common spend</span><span class="amt sm" style="color:var(--red)">${fmt(a.extra)}</span></div>
-      <div class="split-col" style="background:${neg?'rgba(255,107,125,.12)':'rgba(61,220,151,.10)'}"><span class="b">= Effective common savings</span><span class="amt" style="color:${neg?'var(--red)':'var(--green)'}">${fmt(a.effectiveCommon)}</span></div>
+      <div class="split-col" style="background:${neg?'#fff0f1':'#eef4ff'}"><span class="b">= Effective common savings</span><span class="amt" style="color:${neg?'var(--red)':'var(--green)'}">${fmt(a.effectiveCommon)}</span></div>
       ${neg?`<p class="xs" style="color:var(--red);margin:8px 0 0">⚠️ Unplanned spend exceeded the joint pool this month.</p>`:''}
     </div>`;
   }
 
   // breakdown donut
-  const parts=[{k:'Saved',v:a.saved,color:'#3ddc97'},{k:'Invested',v:a.invested,color:'#5b8cff'},{k:'Expenses',v:a.expense,color:'#ff6b7d'}];
+  const parts=[{k:'Saved',v:a.saved,color:'#b8d6ff'},{k:'Invested',v:a.invested,color:'#76adff'},{k:'Expenses',v:a.expense,color:'#064dff'}];
   html+=`<h2>Where the income goes</h2><div class="card"><div class="row" style="align-items:flex-start">${donut(parts)}
     <div class="legend" style="flex:1">`;
   parts.forEach(p=>html+=`<div class="row"><span style="display:flex;align-items:center;gap:8px"><span class="d" style="background:${p.color}"></span>${p.k}</span><span class="b sm">${fmt(p.v)}</span></div>`);
   const leftover=a.salary-a.saved-a.invested-a.expense;
   if(Math.abs(leftover)>1)html+=`<div class="row"><span class="muted sm">Unallocated</span><span class="b sm">${fmt(leftover)}</span></div>`;
-  html+=`</div></div>`;
+  html+=`</div></div></div>`;
 
   // month-over-month comparison (last 6 months up to current)
   const months=[];let m=curMonth();for(let i=0;i<6;i++){months.unshift(m);m=shiftMonth(m,-1);}
@@ -201,12 +201,12 @@ function viewAnalytics(){
   html+=`<h2>Last 6 months</h2><div class="card"><div class="cmp">`;
   series.forEach(s=>{const H=x=>Math.round(x/maxV*100);
     html+=`<div class="col"><div class="stk" style="height:${H(s.saved+s.invested+s.expense)}%">
-        <div style="background:#ff6b7d;height:${s.saved+s.invested+s.expense?H(s.expense)/Math.max(H(s.saved+s.invested+s.expense),1)*100:0}%"></div>
-        <div style="background:#5b8cff;flex:${s.invested}"></div>
-        <div style="background:#3ddc97;flex:${s.saved}"></div>
+        <div style="background:#064dff;height:${s.saved+s.invested+s.expense?H(s.expense)/Math.max(H(s.saved+s.invested+s.expense),1)*100:0}%"></div>
+        <div style="background:#76adff;flex:${s.invested}"></div>
+        <div style="background:#b8d6ff;flex:${s.saved}"></div>
       </div><div class="lbl">${s.m.split('-')[1]}/${s.m.split('-')[0].slice(2)}</div></div>`;});
   html+=`</div><div class="row xs muted" style="margin-top:10px;justify-content:center;gap:14px">
-      <span><span style="color:#3ddc97">●</span> Saved</span><span><span style="color:#5b8cff">●</span> Invested</span><span><span style="color:#ff6b7d">●</span> Expenses</span></div></div>`;
+      <span><span style="color:#b8d6ff">●</span> Saved</span><span><span style="color:#76adff">●</span> Invested</span><span><span style="color:#064dff">●</span> Expenses</span></div></div>`;
 
   // per-person quick compare (combined mode only)
   if(anMode==='combined'&&people.length>1){
@@ -234,7 +234,7 @@ function viewSavings(){
   html+=`</div>`;
 	  html+=`<div class="seg" style="margin:8px 0"><button class="${!savingsFilter?'on':''}" onclick="setSavingsFilter('')">All</button>`;
 	  Object.keys(byType).forEach(t=>{html+=`<button class="${savingsFilter===t?'on':''}" onclick="setSavingsFilter('${esc(t)}')">${esc(t)}</button>`;});
-	  html+=`</div><button class="btn ghost sm" style="margin-top:12px;width:100%" onclick="openTypes()">⚙︎ Manage types</button></div>`
+	  html+=`</div><button class="btn ghost sm" style="margin-top:12px;width:100%" onclick="openTypes()">${icon('settings','var(--accent)',16)} Manage types</button></div>`
   Object.keys(groups).forEach(owner=>{const sum=groups[owner].reduce((s,f)=>s+rdAmt(f),0);
     html+=`<h2>${avatarOf(owner)} ${esc(owner)} · ${fmt(sum)}</h2>`;
     groups[owner].forEach(f=>{const d=daysTo(f.maturity);
@@ -243,7 +243,7 @@ function viewSavings(){
       html+=`<div class="card tap" onclick="openSaving('${f.id}')"><div class="row"><div><div class="b">${esc(f.bank)}</div>
         <div class="muted xs">${esc(f.type)} · ${esc(f.source)}${f.tenure&&f.tenure!=='-'?' · '+esc(f.tenure):''}${f.nominee?' · Nominee '+esc(f.nominee):''}</div></div>
         <div style="text-align:right"><div class="amt">${fmt(typeof rdv==='number'?rdv:f.amount)}</div><span class="pill ${st}">${f.status==='Matured'?'Matured':(d!==null?fmtDate(f.maturity):'Running')}</span></div></div>
-        ${f.phone?`<div class="xs" style="margin-top:6px"><a href="tel:${esc(f.phone)}">📞 ${esc(f.phone)}</a></div>`:''}</div>`;});});
+        ${f.phone?`<div class="xs" style="margin-top:6px"><a href="tel:${esc(f.phone)}">${icon('phone','var(--accent)',14)} ${esc(f.phone)}</a></div>`:''}</div>`;});});
   return html;
 }
 
@@ -266,7 +266,7 @@ function viewSync(){
     <div class="card"><label>…or join an existing household</label><input id="join_id" placeholder="Paste household code">
       <div style="height:8px"></div><input id="join_pin" type="tel" inputmode="numeric" maxlength="8" placeholder="PIN">
       <div style="height:10px"></div><button class="btn ghost" onclick="joinHousehold(document.getElementById('join_id').value,document.getElementById('join_pin').value)">Join household</button></div>
-    <div class="install-tip">🔒 <b>Private &amp; secure:</b> data lives in your own Supabase, locked behind a household code <b>plus</b> PIN.</div>`;
+    <div class="install-tip">${icon('lock','var(--muted)',16)} <b>Private &amp; secure:</b> data lives in your own Supabase, locked behind a household code <b>plus</b> PIN.</div>`;
   }else{
     const statusTxt={idle:'Synced ✅',pushing:'Saving…',pulling:'Checking…',error:'Offline / retrying ⚠️'}[sync.status]||'';
     html+=`<div class="card"><div class="row"><span class="b">Household active</span><span class="pill ${sync.status==='error'?'p-red':'p-green'}">${statusTxt}</span></div>
@@ -279,9 +279,9 @@ function viewSync(){
   }
   html+=`<h2>Backup &amp; data</h2>
     <div class="card"><p class="muted sm" style="margin:0 0 12px">Download a copy of everything, or restore from a backup file. Recommended before big changes.</p>
-      <button class="btn ghost" onclick="exportData()">${icon('save','var(--ink)',16)} &nbsp;Download backup (.json)</button>
+      <button class="btn ghost" onclick="exportData()">${icon('download','var(--accent)',16)} &nbsp;Download backup (.json)</button>
       <div style="height:8px"></div>
-      <button class="btn ghost" onclick="importData()">${icon('expense','var(--ink)',16)} &nbsp;Restore from backup</button></div>`;
+      <button class="btn ghost" onclick="importData()">${icon('upload','var(--accent)',16)} &nbsp;Restore from backup</button></div>`;
   return html;
 }
 function copyCode(){navigator.clipboard?.writeText(sync.id).then(()=>alert('Household code copied.'),()=>{});}
