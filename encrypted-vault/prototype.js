@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const MAX_FILE=2*1024*1024,IDLE_MS=300_000,REVEAL_MS=15_000;
-let encrypted=null,db=null,entries=[],selected=null,epoch=0,idleTimer=null,busy=false,revealTimers=new Set(),vaultName='Household.kdbx',lastLocalSave=null;
+let encrypted=null,db=null,entries=[],selected=null,epoch=0,idleTimer=null,busy=false,revealTimers=new Set(),vaultName='Household.kdbx',lastLocalSave=null,idleDeadline=0;
 const text=value=>value&&typeof value.getText==='function'?value.getText():String(value??'');
 const value=(entry,key)=>text(entry.fields.get(key));
 const node=(tag,content,className)=>{const el=document.createElement(tag);if(content!==undefined)el.textContent=content;if(className)el.className=className;return el;};
@@ -9,11 +9,14 @@ function entryOwner(entry){return window.VaultActors?VaultActors.name(entry):val
 function message(s){$('message').textContent=s;}
 function clearReveals(){for(const timer of revealTimers)clearTimeout(timer);revealTimers.clear();$('fields').replaceChildren();}
 function lock(reason='Vault locked.'){
- window.onVaultLock?.();document.body.classList.remove('vault-unlocked');document.getElementById('documentCards')?.replaceChildren();epoch++;db=null;entries=[];selected=null;busy=false;clearTimeout(idleTimer);clearReveals();
+ window.onVaultLock?.();document.body.classList.remove('vault-unlocked');document.getElementById('documentCards')?.replaceChildren();epoch++;db=null;entries=[];selected=null;busy=false;clearTimeout(idleTimer);idleDeadline=0;clearReveals();
  $('editor').replaceChildren();$('editor').hidden=true;$('password').value='';$('entries').replaceChildren();$('entryTitle').textContent='';$('entryMeta').textContent='';$('owner').replaceChildren(new Option('Everyone',''));$('search').value='';$('count').textContent='';
  $('unlocked').hidden=true;$('detail').hidden=true;$('locked').hidden=false;$('lock').hidden=true;$('lock').textContent='Lock';$('state').textContent='Locked';$('unlock').disabled=!encrypted;$('unlock').textContent='Unlock vault';$('demo').disabled=false;$('file').disabled=false;message(reason);
 }
-function touch(){if(!db&&!busy&&$('editor').hidden)return;clearTimeout(idleTimer);idleTimer=setTimeout(()=>lock('Locked after five minutes without activity.'),IDLE_MS);}
+function vaultSessionActive(){return !!db||busy||!$('editor').hidden;}
+function checkVaultIdle(){if(vaultSessionActive()&&idleDeadline&&Date.now()>=idleDeadline){lock('Locked after five minutes without activity.');return false;}return true;}
+function touch(){if(!checkVaultIdle()||!vaultSessionActive())return;clearTimeout(idleTimer);idleDeadline=Date.now()+IDLE_MS;idleTimer=setTimeout(()=>lock('Locked after five minutes without activity.'),IDLE_MS);}
+function concealVault(){clearReveals();if(selected){$('detail').hidden=true;$('entries').hidden=false;selected=null;}}
 async function chooseFile(file){lock('');encrypted=null;$('unlock').disabled=true;
  if(!file||file.size>MAX_FILE){message('Choose a .kdbx file smaller than 2 MB.');return;}
  const request=epoch;
@@ -56,7 +59,9 @@ $('unlockForm').addEventListener('submit',unlock);$('lock').addEventListener('cl
 $('file').addEventListener('change',e=>{const file=e.target.files[0];e.target.value='';if(file)chooseFile(file);});
 $('demo').addEventListener('click',async()=>{lock('Loading the fictional sample…');const request=epoch;try{const response=await fetch('household-demo.kdbx');if(!response.ok)throw new Error();const file=new File([await response.arrayBuffer()],'household-demo.kdbx');if(request!==epoch)return;await chooseFile(file);$('password').focus();}catch{message('Sample unavailable. Choose the downloaded dummy file instead.');}});
 for(const event of ['pointerdown','keydown','input'])document.addEventListener(event,touch,{passive:true});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&(db||busy||!$('editor').hidden))lock('Locked when the tab was hidden.');});window.addEventListener('pagehide',()=>{lock('');encrypted=null;});window.addEventListener('pageshow',()=>{if(!db)$('state').textContent='Locked';});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)concealVault();else checkVaultIdle();});
+window.addEventListener('pagehide',event=>{if(event.persisted)concealVault();else{lock('');encrypted=null;}});
+window.addEventListener('pageshow',()=>{checkVaultIdle();if(!db)$('state').textContent='Locked';});
 if('serviceWorker'in navigator){navigator.serviceWorker.register('sw.js').then(async()=>{await navigator.serviceWorker.ready;$('offline').textContent='Encrypted copy available on this device';}).catch(()=>{$('offline').textContent='Keep this page open for offline use. Offline shell unavailable.';});}else $('offline').textContent='Keep this page open for offline use.';
 
 function refreshEntries(){entries=[];const visit=group=>{if(db.meta.recycleBinUuid&&group.uuid.equals(db.meta.recycleBinUuid))return;entries.push(...group.entries);group.groups.forEach(visit);};db.groups.forEach(visit);}

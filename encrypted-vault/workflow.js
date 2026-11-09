@@ -89,6 +89,6 @@ window.addEventListener('household-drive-disconnected',()=>{driveReady=false;doc
 window.addEventListener('online',()=>{if(driveReady)forceVaultSync();});
 window.addEventListener('household-vault-saved',()=>{syncSavedVault().catch(e=>syncMessage(e.message));});
 // Keep a single page scroll rather than a nested scrolling panel.
-window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-sync')forceVaultSync();if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-lock')lock('Vault locked. Your Google connection is still active.');});
+window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-sync')forceVaultSync();if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-background')concealVault();if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-resume')checkVaultIdle();if(event.origin===location.origin&&event.source===parent&&event.data?.type==='household-vault-lock')lock('Vault locked. Your Google connection is still active.');});
 setInterval(()=>{if(driveReady&&!document.hidden)forceVaultSync();},12*60*60*1000);
 new ResizeObserver(()=>{parent.postMessage({type:'household-vault-height',height:Math.ceil(document.body.getBoundingClientRect().height)},location.origin);}).observe(document.body);

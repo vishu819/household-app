@@ -607,8 +607,8 @@ function render(){
   document.getElementById('shellHeader').innerHTML=screenHeader();
   const vaultContent=document.getElementById('vaultContent'),regularContent=document.getElementById('regularContent');
   const inVault=tab==='vault';vaultContent.hidden=!inVault;regularContent.hidden=inVault;
-  if(inVault){if(!sync.enabled||verifiedVaultHousehold!==sync.id){destroyHouseholdVault();vaultContent.innerHTML=viewVaultGate();}else if(!document.getElementById('encryptedVaultFrame'))vaultContent.innerHTML=viewVault();}
-  else{regularContent.innerHTML=v();const frame=document.getElementById('encryptedVaultFrame');if(frame)frame.contentWindow.postMessage({type:'household-vault-lock'},location.origin);}
+  if(inVault){if(!sync.enabled||verifiedVaultHousehold!==sync.id){destroyHouseholdVault();vaultContent.innerHTML=viewVaultGate();}else if(!document.getElementById('encryptedVaultFrame'))vaultContent.innerHTML=viewVault();document.getElementById('encryptedVaultFrame')?.contentWindow.postMessage({type:'household-vault-resume'},location.origin);}
+  else{regularContent.innerHTML=v();const frame=document.getElementById('encryptedVaultFrame');if(frame)frame.contentWindow.postMessage({type:'household-vault-background'},location.origin);}
   document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('active',(b.dataset.tab===tab||(b.dataset.tab==='more'&&['analytics','sync'].includes(tab))));if((b.dataset.tab===tab||(b.dataset.tab==='more'&&['analytics','sync'].includes(tab))))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
   document.getElementById('fab').style.display=(tab==='home'||tab==='sync'||tab==='analytics'||tab==='more'||(tab==='vault'&&vaultPanel==='encrypted'))?'none':'flex';
   const eye=document.getElementById('eye');
