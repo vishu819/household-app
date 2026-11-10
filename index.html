@@ -134,6 +134,53 @@ body.vault-screen-active{overflow:hidden}.vault-screen-active #vaultContent{disp
 
 /* Header icons keep the original shared chrome and spacing. */
 .header-title h1{display:flex;align-items:center;gap:8px}.header-title-icon{display:inline-flex;color:var(--accent);flex:0 0 auto}.header-title-icon svg{width:19px;height:19px}
+
+/* Shared content rhythm; header and bottom navigation retain their geometry. */
+#app{padding-left:var(--screen-inset);padding-right:var(--screen-inset)}
+.screen-content .card{padding:var(--card-inset);margin-bottom:var(--section-gap)}
+.screen-content h2{margin-top:var(--section-gap);margin-bottom:var(--control-gap)}
+.screen-content>h2:first-child,.screen-content .card>h2:first-child{margin-top:0}
+.screen-content>.row:has(h2){margin-top:var(--section-gap);margin-bottom:var(--control-gap)}
+.screen-content .row,.field-pair{gap:var(--control-gap)}
+.screen-content .exp{min-height:var(--list-row-min);padding:11px 0}
+.screen-content .iconbtn{min-width:var(--touch-target);min-height:var(--touch-target)}
+.screen-content .seg{margin-bottom:var(--section-gap)}.screen-content .seg button{min-height:var(--touch-target)}
+.savings-tools{gap:var(--control-gap);margin-bottom:var(--section-gap)}.savings-tools .seg{margin-bottom:0}
+.screen-content .card>.btn+.btn{margin-top:var(--control-gap)}
+.screen-content .savings-ledger{padding:0 var(--card-inset);overflow:hidden}
+.savings-ledger .ledger-owner{display:flex;align-items:center;gap:8px;margin:0!important;padding:12px 0 6px;font-size:13px;font-weight:600}
+.ledger-owner .muted{margin-left:auto;font-size:11px;font-weight:500}
+.ledger-owner:not(:first-child){border-top:1px solid var(--line);margin-top:8px!important;padding-top:14px}
+.holding-entry{padding:11px 0;min-height:var(--list-row-min);cursor:pointer;transition:background var(--motion-fast)}
+.holding-entry:not(:last-child){border-bottom:1px solid var(--line)}
+.holding-entry:has(+.ledger-owner){border-bottom:0}
+.holding-entry .holding-identity .b{font-size:14px;line-height:1.4}.holding-entry .amt{font-size:14px}.holding-entry .pill{margin-top:4px}
+.holding-entry:hover{background:var(--card2)}.holding-entry:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:6px}
+#regularContent>.card,#regularContent>.grid2,#regularContent>.savings-tools,#regularContent>.seg{animation:household-enter var(--motion-enter) ease both}
+.btn,.iconbtn,.fab{transition:background var(--motion-fast),transform var(--motion-fast)}.iconbtn:active{transform:scale(.96)}
+@media(max-width:380px){#app{padding-left:var(--screen-inset);padding-right:var(--screen-inset)}.app-header{margin-left:calc(-1 * var(--screen-inset));margin-right:calc(-1 * var(--screen-inset));padding-left:var(--screen-inset);padding-right:var(--screen-inset)}.holding-entry .amt{font-size:12px}.holding-entry .holding-identity .b{font-size:13px}}
+
+.holding-swipe{position:relative;overflow:hidden;touch-action:pan-y}.holding-swipe:not(:last-child){border-bottom:1px solid var(--line)}
+.holding-swipe .holding-entry{position:relative;z-index:1;background:var(--card);padding-right:44px;border:0;transition:transform var(--motion-enter)}
+.holding-delete{position:absolute;right:0;top:0;bottom:0;width:64px;background:#9c3446;color:white;display:grid;place-items:center;visibility:hidden}
+.holding-menu{position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:2;background:none}
+.holding-swipe.actions-open .holding-entry{transform:translateX(-64px)}.holding-swipe.actions-open .holding-delete{visibility:visible}.holding-swipe.actions-open .holding-menu{visibility:hidden}
+.holding-menu:active{transform:translateY(-50%) scale(.96)}
+.saving-delete-actions{display:flex;gap:var(--control-gap)}
+
+/* Motion enhances state changes without changing the shared layout. */
+.tab{transition:color var(--motion-fast),background var(--motion-fast)}.tab.active .ic>svg{animation:household-icon-in 240ms var(--motion-ease)}.tab.active:after{animation:household-progress 200ms var(--motion-ease);transform-origin:center}
+.seg button,.savings-filters button,.pill,.tick{transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast)}
+.seg button.on:after{animation:household-progress 180ms var(--motion-ease);transform-origin:left}
+.savings-ledger .holding-swipe,.card .exp{animation:household-row-in 240ms ease both}
+.savings-ledger .holding-swipe:nth-child(3),.card .exp:nth-child(2){animation-delay:20ms}.savings-ledger .holding-swipe:nth-child(4),.card .exp:nth-child(3){animation-delay:40ms}.savings-ledger .holding-swipe:nth-child(n+5),.card .exp:nth-child(n+4){animation-delay:60ms}
+.holding-entry,.exp{transition:background var(--motion-fast)}.holding-entry:hover{background:rgba(228,237,251,.045)}
+.tick.on{animation:household-check 180ms var(--motion-ease)}
+.bar>i{animation:household-progress 360ms var(--motion-ease);transform-origin:left}
+.force-sync:disabled svg{animation:household-spin 900ms linear infinite}
+.btn,.iconbtn,.fab{transition:transform 130ms var(--motion-ease),background var(--motion-fast),box-shadow var(--motion-fast)}.btn:active{transform:scale(.985)}.fab:active{transform:scale(.93)}
+#modal.show .sheet{animation:sheetUp 240ms var(--motion-ease)}
+@media(hover:hover){.fab:hover{box-shadow:0 5px 20px #075bff40}.btn:not(.ghost):not(:disabled):hover{filter:brightness(1.06)}}
 </style>
 </head>
 <body>

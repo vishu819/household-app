@@ -21,3 +21,5 @@ console.log('PASS: accessible icon actions, reveal all and conceal all');
 
 let viewChanges=0;ctx.window.onVaultViewChange=()=>viewChanges++;run('list()');assert.equal(viewChanges,1);run('detail(testEntry)');assert.equal(viewChanges,2);run('showEditor("Edit")');assert.equal(viewChanges,3);run('lock()');assert.equal(viewChanges,4);
 console.log('PASS: list, detail, editor and lock notify one explicit screen-state subscriber');
+
+run("entries=[{fields:new Map([['Title','Bank'],['Access type','Net banking']])},{fields:new Map([['Title','Payment'],['Access type','UPI']])}];credentialType='Net banking';list()");assert.equal(els.get('count').textContent,'1 of 2 credentials');run("credentialType='Insurance';list()");assert.equal(els.get('count').textContent,'0 of 2 credentials');run("credentialType='';list()");assert.equal(els.get('count').textContent,'2 of 2 credentials');console.log('PASS: credential type filters match exact access types and All restores the list');

@@ -138,3 +138,15 @@ function saveSaving(id){
   if(kind==='other'){for(const key of ['maturityMode','termCount','termUnit','interestRate','startDate','rdMonthly','rdStart','schemeName','investedAmount','units','goldGrams'])delete o[key];o.maturity=f.maturity||'';o.tenure=f.tenure||'-';}
   if(id)Object.assign(DB.savings.find(x=>x.id===id),o);else DB.savings.push({id:uid(),...o});save();closeModal();render();
 }
+
+function confirmDeleteSaving(id){const item=DB.savings.find(x=>x.id===id);if(!item)return;openModal(`<h3>Delete holding?</h3><p class="muted">Remove ${esc(holdingTitle(item))} from your household savings?</p><div class="saving-delete-actions"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" onclick="delItem('savings','${esc(id)}')">Delete holding</button></div>`);}
+function setupSavingsSwipes(){
+ document.querySelectorAll('.holding-swipe').forEach(wrapper=>{const card=wrapper.querySelector('.holding-entry'),menu=wrapper.querySelector('.holding-menu'),remove=wrapper.querySelector('.holding-delete');let start=null,dragged=false,open=false;
+ const setOpen=next=>{open=next;wrapper.classList.toggle('actions-open',open);menu.setAttribute('aria-expanded',String(open));remove.tabIndex=open?0:-1;};
+ menu.addEventListener('click',()=>{setOpen(!open);if(open)remove.focus();});
+ card.addEventListener('pointerdown',e=>{if(e.button===0){start={x:e.clientX,y:e.clientY};dragged=false;}});
+ card.addEventListener('pointermove',e=>{if(!start)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>10){start=null;return;}if(Math.abs(dx)>24&&Math.abs(dx)>Math.abs(dy)*1.5){dragged=true;setOpen(dx<0);}});
+ card.addEventListener('pointerup',()=>start=null);card.addEventListener('pointercancel',()=>{start=null;dragged=false;});
+ card.addEventListener('click',e=>{if(dragged||open){e.preventDefault();e.stopImmediatePropagation();if(dragged){dragged=false;return;}setOpen(false);}},{capture:true});wrapper.addEventListener('keydown',e=>{if(e.key==='Escape'){setOpen(false);menu.focus();}});
+ });
+}
