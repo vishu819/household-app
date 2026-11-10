@@ -226,15 +226,16 @@ function viewSavings(){
   let html=`<div class="savings-tools"><div class="seg savings-filters"><button class="${!savingsFilter?'on':''}" onclick="setSavingsFilter('')">All</button>`;
   Object.keys(byType).forEach(t=>{html+=`<button class="${savingsFilter===t?'on':''}" onclick="setSavingsFilter(${esc(JSON.stringify(t))})">${esc(t)} <span class="filter-amount">${fmt(byType[t])}</span></button>`;});
   html+=`</div><button class="iconbtn" aria-label="Manage types" title="Manage types" onclick="openTypes()">${icon('settings','var(--accent)',18)}</button></div>`;
+  if(!filtered.length)return html+'<div class="empty">No holdings yet. Tap + to add savings.</div>';
   Object.keys(groups).forEach(owner=>{const sum=groups[owner].reduce((s,f)=>s+rdAmt(f),0);
-    html+=`<h2>${avatarOf(owner)} ${esc(owner)} · ${fmt(sum)}</h2>`;
+    html+=`<section class="card savings-ledger" aria-label="${esc(owner)} savings"><h2 class="ledger-owner">${avatarOf(owner)} ${esc(owner)} <span class="muted">${fmt(sum)}</span></h2>`;
     groups[owner].forEach(f=>{const d=hasSavingMaturity(f)?daysTo(f.maturity):null;
       const st=f.status==='Matured'?'p-green':(d!==null&&d>=0&&d<=90?'p-amber':'p-blue');
       const rdv=rdAmt(f);
-      html+=`<div class="card tap" onclick="openSaving('${f.id}')"><div class="row"><div class="holding-identity">${institutionBadge(f)}<div><div class="b">${esc(holdingTitle(f))}</div>
-        <div class="muted xs">${holdingSubtitle(f)}${f.nominee?' · Nominee '+esc(f.nominee):''}</div></div></div>
+      html+=`<div class="holding-swipe" data-saving="${esc(f.id)}"><button class="holding-delete" tabindex="-1" aria-label="Delete ${esc(holdingTitle(f))}" onclick="confirmDeleteSaving('${f.id}')">${icon('trash',null,20)}</button><div class="holding-entry" role="button" tabindex="0" onclick="openSaving('${f.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openSaving('${f.id}')}"><div class="row"><div class="holding-identity">${institutionBadge(f)}<div><div class="b">${esc(holdingTitle(f))}</div>
+        <div class="muted xs">${holdingSubtitle(f)}</div></div></div>
         <div style="text-align:right"><div class="amt">${fmt(typeof rdv==='number'?rdv:f.amount)}</div><span class="pill ${st}">${f.status==='Matured'?'Matured':(d!==null?fmtDate(f.maturity):(f.status||'Running'))}</span></div></div>
-        ${f.phone?`<div class="xs" style="margin-top:6px"><a href="tel:${esc(f.phone)}">${icon('phone','var(--accent)',14)} ${esc(f.phone)}</a></div>`:''}</div>`;});});
+        </div><button class="holding-menu iconbtn" aria-label="Actions for ${esc(holdingTitle(f))}" aria-expanded="false">${icon('more',null,20)}</button></div>`;});html+='</section>';});
   return html;
 }
 

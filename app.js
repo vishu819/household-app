@@ -353,6 +353,8 @@ const ICONS={
   settings:'<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2" fill="var(--bg)"/><circle cx="16" cy="12" r="2" fill="var(--bg)"/><circle cx="10" cy="18" r="2" fill="var(--bg)"/>',
   download:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/>',
   upload:'<path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/>',
+  trash:'<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/>',
+  more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   vault:'<rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="12" cy="12" r="4"/><path d="M12 8v2m0 4v2m-4-4h2m4 0h2M21 8h1m-1 8h1"/>',
   lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
   wallet:'<path d="M3 7h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/><circle cx="16" cy="13" r="1.3"/>',
@@ -609,7 +611,7 @@ function render(){
   const vaultContent=document.getElementById('vaultContent'),regularContent=document.getElementById('regularContent');
   const inVault=['vault','vaultSettings'].includes(tab);document.body.classList.toggle('vault-screen-active',inVault);vaultContent.hidden=!inVault;regularContent.hidden=inVault;
   if(inVault){if(!sync.enabled||verifiedVaultHousehold!==sync.id){destroyHouseholdVault();vaultContent.innerHTML=viewVaultGate();}else if(!document.getElementById('encryptedVaultFrame'))vaultContent.innerHTML=viewVault();document.getElementById('encryptedVaultFrame')?.contentWindow.postMessage({type:'household-vault-resume'},location.origin);const sectionFrame=document.getElementById('encryptedVaultFrame'),section=tab==='vaultSettings'?'settings':'credentials';if(sectionFrame&&sectionFrame.dataset.section!==section){sectionFrame.dataset.section=section;sectionFrame.contentWindow.postMessage({type:'household-vault-section',section},location.origin);}}
-  else{regularContent.innerHTML=v();const frame=document.getElementById('encryptedVaultFrame');if(frame)frame.contentWindow.postMessage({type:'household-vault-background'},location.origin);}
+  else{regularContent.innerHTML=v();if(tab==='savings')setupSavingsSwipes();const frame=document.getElementById('encryptedVaultFrame');if(frame)frame.contentWindow.postMessage({type:'household-vault-background'},location.origin);}
   document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('active',(b.dataset.tab===tab||(b.dataset.tab==='more'&&['analytics','sync','vaultSettings'].includes(tab))));if((b.dataset.tab===tab||(b.dataset.tab==='more'&&['analytics','sync','vaultSettings'].includes(tab))))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
   document.getElementById('fab').style.display=(tab==='vaultSettings'||tab==='home'||tab==='sync'||tab==='analytics'||tab==='more'||(tab==='vault'&&vaultPanel==='encrypted'))?'none':'flex';
   const eye=document.getElementById('eye');

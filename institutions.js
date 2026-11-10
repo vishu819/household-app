@@ -20,8 +20,8 @@ const INSTITUTIONS=[
     "name": "Axis Bank",
     "kind": "bank",
     "website": "https://www.axisbank.com",
-    "logo": "assets/institutions/axis.ico",
-    "logoSource": "https://www.axis.bank.in/assets/images/favicon.ico",
+    "logo": "assets/institutions/axis-hd.png",
+    "logoSource": "User-provided bank logo",
     "aliases": [
       "Axis"
     ],
@@ -146,8 +146,8 @@ const INSTITUTIONS=[
     "name": "HDFC Bank",
     "kind": "bank",
     "website": "https://www.hdfcbank.com",
-    "logo": "assets/institutions/hdfc.ico",
-    "logoSource": "https://www.hdfc.bank.in/favicon.ico",
+    "logo": "assets/institutions/hdfc-hd.png",
+    "logoSource": "User-provided bank logo",
     "aliases": [
       "HDFC"
     ],
@@ -255,8 +255,8 @@ const INSTITUTIONS=[
     "name": "Punjab National Bank",
     "kind": "bank",
     "website": "https://www.pnbindia.in",
-    "logo": "assets/institutions/pnb.ico",
-    "logoSource": "https://pnb.bank.in/images/favicon.ico",
+    "logo": "assets/institutions/pnb-hd.svg",
+    "logoSource": "User-provided bank logo",
     "aliases": [
       "PNB",
       "government",
@@ -284,7 +284,7 @@ const INSTITUTIONS=[
     "name": "slice Small Finance Bank",
     "kind": "bank",
     "website": "https://slice.bank.in",
-    "logo": "assets/institutions/slice.ico",
+    "logo": "assets/institutions/slice-hd.png",
     "aliases": [
       "Slice",
       "North East Small Finance Bank",
@@ -294,14 +294,14 @@ const INSTITUTIONS=[
     ],
     "category": "small-finance",
     "directorySource": "https://www.rbi.org.in/commonman/english/scripts/banksinindia.aspx",
-    "logoSource": "https://slice.bank.in/favicon.ico"
+    "logoSource": "User-provided bank logo"
   },
   {
     "id": "sbi",
     "name": "State Bank of India",
     "kind": "bank",
     "website": "https://sbi.bank.in",
-    "logo": "assets/institutions/sbi.ico",
+    "logo": "assets/institutions/sbi-hd.png",
     "aliases": [
       "SBI",
       "government",
@@ -310,21 +310,22 @@ const INSTITUTIONS=[
     ],
     "category": "public-sector",
     "directorySource": "https://www.rbi.org.in/commonman/english/scripts/banksinindia.aspx",
-    "logoSource": "https://sbi.bank.in/o/SBI-Theme/images/favicon.ico"
+    "logoSource": "User-provided bank logo"
   },
   {
     "id": "suryoday",
     "name": "Suryoday Small Finance Bank",
     "kind": "bank",
     "website": "https://suryoday.bank.in",
-    "logo": null,
+    "logo": "assets/institutions/suryoday-hd.jpeg",
     "aliases": [
       "Suryodhay",
       "Suryodaya",
       "SFB"
     ],
     "category": "small-finance",
-    "directorySource": "https://www.rbi.org.in/commonman/english/scripts/banksinindia.aspx"
+    "directorySource": "https://www.rbi.org.in/commonman/english/scripts/banksinindia.aspx",
+    "logoSource": "User-provided bank logo"
   },
   {
     "id": "uco",
@@ -388,13 +389,13 @@ const INSTITUTIONS=[
     "name": "Utkarsh Small Finance Bank",
     "kind": "bank",
     "website": "https://www.utkarsh.bank.in",
-    "logo": "assets/institutions/utkarsh.png",
+    "logo": "assets/institutions/utkarsh-hd.webp",
     "aliases": [
       "SFB"
     ],
     "category": "small-finance",
     "directorySource": "https://www.rbi.org.in/commonman/english/scripts/banksinindia.aspx",
-    "logoSource": "https://www.utkarsh.bank.in/uploads/setting/favicon.png"
+    "logoSource": "User-provided bank logo"
   },
   {
     "id": "angel",
